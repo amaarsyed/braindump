@@ -73,7 +73,8 @@ export default function ChatBot() {
               className="flex items-center border-t bg-white px-2"
             >
               <input
-                name="message"
+                name="chat_message_input"
+                autoComplete="off"
                 ref={inputRef}
                 placeholder="Ask something..."
                 className="flex-1 p-2 text-sm outline-none"
