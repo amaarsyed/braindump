@@ -21,8 +21,8 @@ function App() {
 
   return (
     <>
-      {/* App Layout */}
-      <div className="h-screen w-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900 text-black dark:text-white transition-colors duration-300">
+      <div className="h-screen w-screen flex overflow-hidden bg-gray-50 dark:bg-dark text-black dark:text-white transition-colors duration-300">
+
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -30,11 +30,14 @@ function App() {
           setPage={setPage}
         />
 
-        {/* Main Page Content */}
+        {/* Main Content */}
         <main
-          className="transition-all duration-300 p-10"
+          className="transition-all duration-300 p-10 relative w-full"
           style={{ marginLeft: sidebarWidth }}
         >
+          {/* Dark Mode Button in top-right */}
+          <DarkModeToggle />
+
           <AnimatePresence mode="wait">
             <motion.div
               key={page}
@@ -49,9 +52,8 @@ function App() {
         </main>
       </div>
 
-      {/* Floating Components */}
+      {/* Floating Chatbot (bottom-right) */}
       <ChatBot />
-      <DarkModeToggle />
     </>
   )
 }
