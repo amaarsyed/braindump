@@ -2,8 +2,8 @@ import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import Sidebar from "./components/Sidebar"
 import CanvasPage from "./pages/CanvasPage"
-import ChatPage from "./pages/ChatPage"
 import ChatBot from "./components/ChatBot"
+import DarkModeToggle from "./components/DarkModeToggle"
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -11,8 +11,6 @@ function App() {
 
   const renderPage = () => {
     switch (page) {
-      case "chat":
-        return <ChatPage />
       case "canvas":
       default:
         return <CanvasPage />
@@ -23,7 +21,8 @@ function App() {
 
   return (
     <>
-      <div className="h-screen w-screen flex overflow-hidden bg-gray-50">
+      {/* App Layout */}
+      <div className="h-screen w-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900 text-black dark:text-white transition-colors duration-300">
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -31,7 +30,7 @@ function App() {
           setPage={setPage}
         />
 
-        {/* Main content  */}
+        {/* Main Page Content */}
         <main
           className="transition-all duration-300 p-10"
           style={{ marginLeft: sidebarWidth }}
@@ -50,8 +49,9 @@ function App() {
         </main>
       </div>
 
-      {/* Floating chatbot */}
+      {/* Floating Components */}
       <ChatBot />
+      <DarkModeToggle />
     </>
   )
 }

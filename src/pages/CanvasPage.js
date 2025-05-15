@@ -1,4 +1,8 @@
 export default function CanvasPage() {
-    return <div className="text-center text-2xl">🧠 This is the Canvas Page</div>
+    return (
+      <div className="text-2xl text-center mt-10">
+        🧠 Welcome to Braindump Canvas
+      </div>
+    )
   }
   
