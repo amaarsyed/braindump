@@ -24,12 +24,7 @@ export default function Sidebar({ isOpen, setIsOpen, setPage }) {
         >
           🧠 {isOpen && "Canvas"}
         </button>
-        <button
-          onClick={() => setPage("chat")}
-          className="flex items-center gap-2 hover:text-blue-600"
-        >
-          🤖 {isOpen && "Chat"}
-        </button>
+       
       </nav>
     </motion.div>
   )
