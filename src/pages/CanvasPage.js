@@ -88,13 +88,24 @@ function TopControlsBox({ onUndo, onRedo }) {
     return () => observer.disconnect();
   }, []);
   const iconColor = isDark ? "#fff" : "#222";
+  // Toggle dark mode
+  const toggleDark = () => {
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+    }
+    setIsDark(!isDark);
+  };
   return (
     <div className="fixed top-4 right-6 z-50 flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-2">
       <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} color={iconColor} /></button>
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
       <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
       <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} color={iconColor} /></button>
-      <DarkModeToggleTop />
+      <button title={isDark ? "Switch to light mode" : "Switch to dark mode"} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={toggleDark}>
+        {isDark ? <LuSun size={22} color="#fff" /> : <LuMoon size={22} color="#222" />}
+      </button>
     </div>
   );
 }
