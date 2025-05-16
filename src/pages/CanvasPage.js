@@ -111,6 +111,7 @@ function TopControlsBox({ onUndo, onRedo }) {
 }
 
 function LogoStandalone() {
+  // Use LuBrain icon for a literal brain representation
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -121,20 +122,9 @@ function LogoStandalone() {
   }, []);
   const iconColor = isDark ? "#fff" : "#222";
   return (
-    <div className="fixed top-4 left-6 z-50 flex items-center select-none" style={{height: '2.2rem'}}>
-      <LuBrain size={32} color={iconColor} style={{marginRight: 8, flexShrink: 0, marginTop: 1}} />
-      <span style={{
-        fontFamily: 'Montserrat, Inter, sans-serif',
-        fontWeight: 700,
-        fontSize: '1.6rem',
-        letterSpacing: '0.04em',
-        color: iconColor,
-        display: 'flex',
-        alignItems: 'center',
-        transition: 'color 0.2s',
-      }}>
-        dump
-      </span>
+    <div className="fixed top-4 left-6 z-50 flex items-center select-none" style={{height: '3.5rem', padding: '0.25rem 0.5rem'}}>
+      <LuBrain size={48} color={iconColor} style={{marginRight: 16, flexShrink: 0}} />
+      <span style={{ fontFamily: 'Montserrat, Inter, sans-serif', fontWeight: 600, fontSize: '2.1rem', letterSpacing: '0.01em', lineHeight: 1, color: iconColor }}>braindump</span>
     </div>
   );
 }
@@ -403,10 +393,6 @@ export default function CanvasPage() {
           { id: Date.now(), x, y, text: "Sticky note" }
         ]
       }));
-    } else if (tool === 'image') {
-      setPendingImagePos({ x, y });
-      setShowAddImageModal(true);
-      return;
     } else if (tool === 'text') {
       pushToUndo(elements);
       setElements((prev) => ({
@@ -487,6 +473,18 @@ export default function CanvasPage() {
       ctx.stroke();
     });
   }, [elements.lines]);
+
+  // Replace setTool usage to intercept 'image' tool selection
+  function handleToolbarToolSelect(selectedTool) {
+    setTool(selectedTool);
+    if (selectedTool === 'image') {
+      // Center of viewport
+      const x = window.innerWidth / 2 - 60;
+      const y = window.innerHeight / 2 - 45;
+      setPendingImagePos({ x, y });
+      setShowAddImageModal(true);
+    }
+  }
 
   return (
     <div className="h-screen w-screen relative bg-gray-50 dark:bg-dark">
@@ -616,7 +614,7 @@ export default function CanvasPage() {
           }}
         />
       )}
-      <BottomToolbar tool={tool} setTool={setTool} />
+      <BottomToolbar tool={tool} setTool={handleToolbarToolSelect} />
       <AddImageModal open={showAddImageModal} onClose={() => setShowAddImageModal(false)} onAdd={handleAddImage} position={pendingImagePos} isDark={isDark} />
     </div>
   );
