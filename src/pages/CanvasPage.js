@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain } from "react-icons/lu";
+import { motion } from 'framer-motion';
 
 const TOOL_SELECT = "select";
 const TOOL_DRAW = "draw";
@@ -291,6 +292,150 @@ function AddImageModal({ open, onClose, onAdd, position, isDark }) {
   );
 }
 
+const FONT_OPTIONS = [
+  { label: 'Inter', value: 'Inter, sans-serif' },
+  { label: 'Comic Sans', value: 'Comic Sans MS, Comic Sans, cursive' },
+  { label: 'Serif', value: 'serif' },
+  { label: 'Mono', value: 'monospace' },
+  { label: 'Montserrat', value: 'Montserrat, sans-serif' },
+];
+
+function StickyNote({
+  id, x, y, width, height, rotation, color, font, text, isEditing, onChange, onEdit, onDelete, onDrag, onResize, onRotate, colorPalette, onColorChange, onFontChange
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [local, setLocal] = useState({ x, y, width, height, rotation });
+  const noteRef = useRef();
+
+  // Drag logic
+  function handleDrag(e, info) {
+    setLocal(l => ({ ...l, x: info.point.x, y: info.point.y }));
+    if (onDrag) onDrag({ x: info.point.x, y: info.point.y });
+  }
+
+  // Resize logic
+  function handleResize(e) {
+    e.stopPropagation();
+    setResizing(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = local.width;
+    const startH = local.height;
+    function onMove(ev) {
+      const newW = Math.max(80, startW + (ev.clientX - startX));
+      const newH = Math.max(40, startH + (ev.clientY - startY));
+      setLocal(l => ({ ...l, width: newW, height: newH }));
+      if (onResize) onResize({ width: newW, height: newH });
+    }
+    function onUp() {
+      setResizing(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  // Rotate logic
+  function handleRotate(e) {
+    e.stopPropagation();
+    setRotating(true);
+    const rect = noteRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    function onMove(ev) {
+      const dx = ev.clientX - centerX;
+      const dy = ev.clientY - centerY;
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      setLocal(l => ({ ...l, rotation: angle }));
+      if (onRotate) onRotate({ rotation: angle });
+    }
+    function onUp() {
+      setRotating(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  // Font and color change
+  function handleFontChange(e) {
+    if (onFontChange) onFontChange(e.target.value);
+  }
+  function handleColorChange(c) {
+    if (onColorChange) onColorChange(c);
+  }
+
+  return (
+    <motion.div
+      ref={noteRef}
+      className="absolute shadow-lg rounded-lg"
+      style={{
+        left: local.x,
+        top: local.y,
+        width: local.width,
+        height: local.height,
+        background: color,
+        fontFamily: font,
+        transform: `rotate(${local.rotation || 0}deg)`,
+        transition: dragging || resizing || rotating ? 'none' : 'box-shadow 0.2s, transform 0.2s',
+        zIndex: dragging ? 100 : 10,
+        boxShadow: dragging ? '0 8px 32px 0 rgba(0,0,0,0.18)' : '0 2px 8px 0 rgba(0,0,0,0.10)',
+        userSelect: isEditing ? 'text' : 'none',
+      }}
+      drag
+      dragMomentum={false}
+      dragElastic={0.18}
+      onDragStart={() => setDragging(true)}
+      onDragEnd={(e, info) => { setDragging(false); if (onDrag) onDrag({ x: info.point.x, y: info.point.y }); }}
+      onDrag={handleDrag}
+    >
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 px-2 py-1 bg-white/60 dark:bg-zinc-900/60 rounded-t-lg" style={{ cursor: 'move', borderBottom: '1px solid #eee' }}>
+        <select value={font} onChange={handleFontChange} className="text-xs rounded px-1 py-0.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700">
+          {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+        </select>
+        <div className="flex gap-0.5 ml-2">
+          {colorPalette.map(c => (
+            <button key={c} className="w-4 h-4 rounded-full border-2 border-white dark:border-zinc-700" style={{ background: c }} onClick={() => handleColorChange(c)} />
+          ))}
+        </div>
+        <button onClick={onEdit} className="ml-auto text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800">✏️</button>
+        <button onClick={onDelete} className="text-xs px-1 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900">🗑️</button>
+        <button onPointerDown={handleRotate} className="text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 cursor-alias">⟳</button>
+      </div>
+      {/* Content */}
+      {isEditing ? (
+        <textarea
+          autoFocus
+          value={text}
+          onChange={e => onChange && onChange(e.target.value)}
+          onBlur={onEdit}
+          className="w-full h-full bg-transparent resize-none outline-none p-2 text-base rounded-b-lg"
+          style={{ fontFamily: font, background: 'transparent' }}
+        />
+      ) : (
+        <div
+          className="w-full h-full p-2 text-base rounded-b-lg cursor-pointer"
+          style={{ fontFamily: font, background: 'transparent', minHeight: 40, minWidth: 80 }}
+          onDoubleClick={onEdit}
+        >
+          {text}
+        </div>
+      )}
+      {/* Resize handle */}
+      <div
+        onPointerDown={handleResize}
+        className="absolute right-1.5 bottom-1.5 w-3 h-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded cursor-se-resize"
+        style={{ zIndex: 20 }}
+      />
+    </motion.div>
+  );
+}
+
 export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState({
@@ -507,10 +652,33 @@ export default function CanvasPage() {
       />
       {/* Sticky Notes */}
       {elements.stickyNotes.map((note) => (
-        <Draggable
+        <StickyNote
           key={note.id}
+          id={note.id}
           x={note.x}
           y={note.y}
+          width={120}
+          height={80}
+          rotation={0}
+          color={note.color || "#fff"}
+          font={note.font || "Inter, sans-serif"}
+          text={note.text}
+          isEditing={editingStickyId === note.id}
+          onChange={(newText) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, text: newText } : n)
+            }));
+          }}
+          onEdit={() => setEditingStickyId(note.id)}
+          onDelete={() => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.filter(n => n.id !== note.id)
+            }));
+          }}
           onDrag={(pos) => {
             pushToUndo(elements);
             setElements((prev) => ({
@@ -518,29 +686,36 @@ export default function CanvasPage() {
               stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, ...pos } : n)
             }));
           }}
-        >
-          {editingStickyId === note.id ? (
-            <textarea
-              autoFocus
-              value={note.text}
-              onChange={e => setElements((prev) => ({
-                ...prev,
-                stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, text: e.target.value } : n)
-              }))}
-              onBlur={() => setEditingStickyId(null)}
-              className="rounded bg-yellow-200 p-2 min-w-[100px] min-h-[60px] text-sm shadow resize-none"
-              style={{ fontFamily: 'inherit', fontWeight: 500 }}
-            />
-          ) : (
-            <div
-              className="rounded bg-yellow-200 p-2 min-w-[100px] min-h-[60px] text-sm shadow cursor-pointer"
-              style={{ fontFamily: 'inherit', fontWeight: 500 }}
-              onDoubleClick={() => setEditingStickyId(note.id)}
-            >
-              {note.text}
-            </div>
-          )}
-        </Draggable>
+          onResize={(size) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, ...size } : n)
+            }));
+          }}
+          onRotate={(rotation) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, rotation } : n)
+            }));
+          }}
+          colorPalette={COLORS_LIGHT}
+          onColorChange={(newColor) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, color: newColor } : n)
+            }));
+          }}
+          onFontChange={(newFont) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, font: newFont } : n)
+            }));
+          }}
+        />
       ))}
       {/* Images */}
       {elements.images.map((img) => (
