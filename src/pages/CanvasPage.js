@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown } from "react-icons/lu";
+import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain } from "react-icons/lu";
 
 const TOOL_SELECT = "select";
 const TOOL_DRAW = "draw";
@@ -56,29 +56,74 @@ const tools = [
 const undoIcon = <LuUndo2 size={22} />;
 const redoIcon = <LuRedo2 size={22} />;
 
-// Top Toolbar
-function TopToolbar({ onUndo, onRedo }) {
+// Custom DarkModeToggle for top right
+function DarkModeToggleTop() {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [dark]);
   return (
-    <div className="fixed top-0 left-0 w-full flex items-center justify-end bg-white/80 dark:bg-zinc-900/80 border-b border-gray-200 dark:border-zinc-700 px-4 py-2 z-50 backdrop-blur">
-      {/* Braindump title, top left */}
-      <div className="absolute left-4 top-1 flex items-center select-none">
-        <span style={{
-          fontFamily: 'Poppins, Inter, Montserrat, sans-serif',
-          fontWeight: 700,
-          fontSize: '1.35rem',
-          letterSpacing: '0.04em',
-          color: 'var(--braindump-title-color, #6366f1)', // indigo-500
-          textShadow: '0 1px 8px rgba(99,102,241,0.08)'
-        }}>
-          braindump
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} /></button>
-        <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} /></button>
-        <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} /></button>
-        <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} /></button>
-      </div>
+    <button
+      onClick={() => setDark((d) => !d)}
+      className="p-2 ml-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
+      title={dark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {dark ? <LuSun size={22} color="#fff" /> : <LuMoon size={22} color="#222" />}
+    </button>
+  );
+}
+
+function TopControlsBox({ onUndo, onRedo }) {
+  // Detect dark mode for icon color
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  const iconColor = isDark ? "#fff" : "#222";
+  return (
+    <div className="fixed top-4 right-6 z-50 flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-2">
+      <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} color={iconColor} /></button>
+      <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
+      <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
+      <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} color={iconColor} /></button>
+      <DarkModeToggleTop />
+    </div>
+  );
+}
+
+function LogoStandalone() {
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  const iconColor = isDark ? "#fff" : "#222";
+  return (
+    <div className="fixed top-4 left-6 z-50 flex items-center select-none" style={{height: '2.2rem'}}>
+      <LuBrain size={32} color={iconColor} style={{marginRight: 8, flexShrink: 0, marginTop: 1}} />
+      <span style={{
+        fontFamily: 'Montserrat, Inter, sans-serif',
+        fontWeight: 700,
+        fontSize: '1.6rem',
+        letterSpacing: '0.04em',
+        color: iconColor,
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'color 0.2s',
+      }}>
+        dump
+      </span>
     </div>
   );
 }
@@ -136,17 +181,92 @@ function isNearPoint(x, y, pt, threshold = 8) {
   return Math.hypot(x - pt.x, y - pt.y) < threshold;
 }
 
+function Draggable({ x, y, children, onDrag, style, ...props }) {
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const ref = useRef();
+
+  const handlePointerDown = (e) => {
+    setDragging(true);
+    setOffset({
+      x: e.clientX - x,
+      y: e.clientY - y,
+    });
+    e.stopPropagation();
+  };
+  const handlePointerMove = (e) => {
+    if (!dragging) return;
+    onDrag({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+  };
+  const handlePointerUp = () => setDragging(false);
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+      return () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      };
+    }
+  });
+
+  return (
+    <div
+      ref={ref}
+      style={{ position: "absolute", left: x, top: y, cursor: dragging ? "grabbing" : "grab", ...style }}
+      onPointerDown={handlePointerDown}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function CanvasPage() {
-  const [tool, setTool] = useState('draw');
-  const [color, setColor] = useState("#222");
-  const [lines, setLines] = useState([]); // Each line: { points: [{x, y}], color }
+  // Unified state for all elements
+  const [elements, setElements] = useState({
+    lines: [],
+    stickyNotes: [],
+    images: [],
+    textBoxes: [],
+  });
   const [drawing, setDrawing] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
-  const [eraserPos, setEraserPos] = useState(null); // {x, y} or null
+  const [eraserPos, setEraserPos] = useState(null);
+  const [editingTextId, setEditingTextId] = useState(null);
+  const [editingStickyId, setEditingStickyId] = useState(null);
+  const [tool, setTool] = useState('draw');
+  const [color, setColor] = useState("#222");
   const canvasRef = useRef(null);
+  const fileInputRef = useRef();
   const isDark = useIsDarkMode();
   const ERASER_RADIUS = 16;
+
+  // Helper: push to undo stack
+  const pushToUndo = (current) => {
+    setUndoStack((prev) => [...prev, current]);
+    setRedoStack([]);
+  };
+
+  // Erase logic for all elements
+  function eraseAt(x, y) {
+    setElements((prev) => {
+      // Erase lines
+      const lines = prev.lines.filter(line => !line.points.some(pt => isNearPoint(x, y, pt)));
+      // Erase sticky notes
+      const stickyNotes = prev.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+      // Erase images
+      const images = prev.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+      // Erase text boxes
+      const textBoxes = prev.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+      return { lines, stickyNotes, images, textBoxes };
+    });
+  }
+  function isInBox(x, y, bx, by, bw, bh) {
+    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
+  }
 
   // Mouse events for drawing and erasing
   const handlePointerDown = (e) => {
@@ -154,11 +274,14 @@ export default function CanvasPage() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (tool === 'draw') {
-      pushToUndo(lines);
-      setLines((prev) => [...prev, { points: [{ x, y }], color }]);
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        lines: [...prev.lines, { points: [{ x, y }], color }],
+      }));
       setDrawing(true);
     } else if (tool === 'eraser') {
-      pushToUndo(lines);
+      pushToUndo(elements);
       eraseAt(x, y);
       setDrawing(true);
       setEraserPos({ x, y });
@@ -171,10 +294,10 @@ export default function CanvasPage() {
     const y = e.clientY - rect.top;
     if (!drawing) return;
     if (tool === 'draw') {
-      setLines((prev) => {
-        const newLines = [...prev];
+      setElements((prev) => {
+        const newLines = [...prev.lines];
         newLines[newLines.length - 1].points.push({ x, y });
-        return newLines;
+        return { ...prev, lines: newLines };
       });
     } else if (tool === 'eraser') {
       eraseAt(x, y);
@@ -187,36 +310,77 @@ export default function CanvasPage() {
     setEraserPos(null);
   };
 
-  // Erase lines near pointer
-  const eraseAt = (x, y) => {
-    setLines((prev) => prev.filter(line => !line.points.some(pt => isNearPoint(x, y, pt))));
+  // Add sticky note, image, or text box
+  const handleCanvasPointerDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (tool === 'sticky') {
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        stickyNotes: [
+          ...prev.stickyNotes,
+          { id: Date.now(), x, y, text: "Sticky note" }
+        ]
+      }));
+    } else if (tool === 'image') {
+      fileInputRef.current.click();
+      fileInputRef.current._pendingImagePos = { x, y };
+    } else if (tool === 'text') {
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        textBoxes: [
+          ...prev.textBoxes,
+          { id: Date.now(), x, y, text: "Text" }
+        ]
+      }));
+    } else {
+      handlePointerDown(e);
+    }
+  };
+
+  // Handle image file selection
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const pos = fileInputRef.current._pendingImagePos || { x: 100, y: 100 };
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        images: [
+          ...prev.images,
+          { id: Date.now(), x: pos.x, y: pos.y, src: ev.target.result, width: 120, height: 90 }
+        ]
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // Undo/Redo logic
-  const pushToUndo = (currentLines) => {
-    setUndoStack((prev) => [...prev, currentLines]);
-    setRedoStack([]);
-  };
-
   const handleUndo = useCallback(() => {
     setUndoStack((prevUndo) => {
       if (prevUndo.length === 0) return prevUndo;
-      setRedoStack((prevRedo) => [...prevRedo, lines]);
-      const prevLines = prevUndo[prevUndo.length - 1];
-      setLines(prevLines);
+      setRedoStack((prevRedo) => [...prevRedo, elements]);
+      const prevElements = prevUndo[prevUndo.length - 1];
+      setElements(prevElements);
       return prevUndo.slice(0, -1);
     });
-  }, [lines]);
+  }, [elements]);
 
   const handleRedo = useCallback(() => {
     setRedoStack((prevRedo) => {
       if (prevRedo.length === 0) return prevRedo;
-      setUndoStack((prevUndo) => [...prevUndo, lines]);
-      const nextLines = prevRedo[prevRedo.length - 1];
-      setLines(nextLines);
+      setUndoStack((prevUndo) => [...prevUndo, elements]);
+      const nextElements = prevRedo[prevRedo.length - 1];
+      setElements(nextElements);
       return prevRedo.slice(0, -1);
     });
-  }, [lines]);
+  }, [elements]);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -234,13 +398,13 @@ export default function CanvasPage() {
   }, [handleUndo, handleRedo]);
 
   // Draw lines on canvas
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    lines.forEach((line) => {
+    elements.lines.forEach((line) => {
       ctx.strokeStyle = line.color;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -250,11 +414,12 @@ export default function CanvasPage() {
       });
       ctx.stroke();
     });
-  }, [lines]);
+  }, [elements.lines]);
 
   return (
     <div className="h-screen w-screen relative bg-gray-50 dark:bg-dark">
-      <TopToolbar onUndo={handleUndo} onRedo={handleRedo} />
+      <LogoStandalone />
+      <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} />
       <RightToolbar />
       <canvas
         ref={canvasRef}
@@ -265,10 +430,109 @@ export default function CanvasPage() {
           cursor: tool === 'draw' ? 'crosshair' : tool === 'eraser' ? 'pointer' : 'default',
           background: 'transparent',
         }}
-        onPointerDown={handlePointerDown}
+        onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+      />
+      {/* Sticky Notes */}
+      {elements.stickyNotes.map((note) => (
+        <Draggable
+          key={note.id}
+          x={note.x}
+          y={note.y}
+          onDrag={(pos) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, ...pos } : n)
+            }));
+          }}
+        >
+          {editingStickyId === note.id ? (
+            <textarea
+              autoFocus
+              value={note.text}
+              onChange={e => setElements((prev) => ({
+                ...prev,
+                stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, text: e.target.value } : n)
+              }))}
+              onBlur={() => setEditingStickyId(null)}
+              className="rounded bg-yellow-200 p-2 min-w-[100px] min-h-[60px] text-sm shadow resize-none"
+              style={{ fontFamily: 'inherit', fontWeight: 500 }}
+            />
+          ) : (
+            <div
+              className="rounded bg-yellow-200 p-2 min-w-[100px] min-h-[60px] text-sm shadow cursor-pointer"
+              style={{ fontFamily: 'inherit', fontWeight: 500 }}
+              onDoubleClick={() => setEditingStickyId(note.id)}
+            >
+              {note.text}
+            </div>
+          )}
+        </Draggable>
+      ))}
+      {/* Images */}
+      {elements.images.map((img) => (
+        <Draggable
+          key={img.id}
+          x={img.x}
+          y={img.y}
+          onDrag={(pos) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              images: prev.images.map(i => i.id === img.id ? { ...i, ...pos } : i)
+            }));
+          }}
+        >
+          <img src={img.src} alt="uploaded" style={{ width: img.width, height: img.height, borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
+        </Draggable>
+      ))}
+      {/* Text Boxes */}
+      {elements.textBoxes.map((tb) => (
+        <Draggable
+          key={tb.id}
+          x={tb.x}
+          y={tb.y}
+          onDrag={(pos) => {
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, ...pos } : t)
+            }));
+          }}
+        >
+          {editingTextId === tb.id ? (
+            <input
+              autoFocus
+              value={tb.text}
+              onChange={e => setElements((prev) => ({
+                ...prev,
+                textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, text: e.target.value } : t)
+              }))}
+              onBlur={() => setEditingTextId(null)}
+              className="rounded bg-white/80 dark:bg-zinc-900/80 px-2 py-1 text-base shadow border border-gray-200 dark:border-zinc-700"
+              style={{ fontFamily: 'inherit', fontWeight: 500, minWidth: 60 }}
+            />
+          ) : (
+            <div
+              className="rounded bg-white/80 dark:bg-zinc-900/80 px-2 py-1 text-base shadow border border-gray-200 dark:border-zinc-700 cursor-pointer"
+              style={{ fontFamily: 'inherit', fontWeight: 500, minWidth: 60 }}
+              onDoubleClick={() => setEditingTextId(tb.id)}
+            >
+              {tb.text}
+            </div>
+          )}
+        </Draggable>
+      ))}
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleImageChange}
       />
       {/* Eraser hover animation */}
       {tool === 'eraser' && drawing && eraserPos && (
