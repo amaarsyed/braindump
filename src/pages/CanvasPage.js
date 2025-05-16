@@ -234,6 +234,73 @@ function Draggable({ x, y, children, onDrag, style, ...props }) {
   );
 }
 
+// AddImageModal component
+function AddImageModal({ open, onClose, onAdd, position, isDark }) {
+  const [tab, setTab] = useState('url');
+  const [url, setUrl] = useState('');
+  const [file, setFile] = useState(null);
+  const [gifs, setGifs] = useState([]);
+  const [gifQuery, setGifQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab === 'gif' && gifQuery) {
+      setLoading(true);
+      fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(gifQuery)}&limit=12`)
+        .then(res => res.json())
+        .then(data => {
+          setGifs(data.data);
+          setLoading(false);
+        });
+    }
+  }, [tab, gifQuery]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/60">
+      <div className={`bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-[370px] max-w-full relative border border-gray-200 dark:border-zinc-700`}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-2xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">&times;</button>
+        <div className="mb-4 flex gap-2">
+          <button onClick={() => setTab('url')} className={`px-4 py-1.5 rounded-t-lg border ${tab==='url' ? 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 font-semibold' : 'bg-transparent border-transparent'}`}>URL</button>
+          <button onClick={() => setTab('upload')} className={`px-4 py-1.5 rounded-t-lg border ${tab==='upload' ? 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 font-semibold' : 'bg-transparent border-transparent'}`}>Upload</button>
+          <button onClick={() => setTab('gif')} className={`px-4 py-1.5 rounded-t-lg border ${tab==='gif' ? 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 font-semibold' : 'bg-transparent border-transparent'}`}>GIF</button>
+        </div>
+        {tab === 'url' && (
+          <div>
+            <label className="block text-sm mb-2 font-medium text-gray-700 dark:text-gray-200">Image URL</label>
+            <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 mb-4" />
+            <button className="w-full py-2 rounded bg-gray-300 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold disabled:opacity-60" disabled={!url} onClick={() => { onAdd({ type: 'url', src: url, position }); onClose(); }}>Add Image</button>
+          </div>
+        )}
+        {tab === 'upload' && (
+          <div>
+            <label className="block text-sm mb-2 font-medium text-gray-700 dark:text-gray-200">Upload Image</label>
+            <input type="file" accept="image/*" onChange={e => setFile(e.target.files[0])} className="mb-4" />
+            <button className="w-full py-2 rounded bg-gray-300 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold disabled:opacity-60" disabled={!file} onClick={() => {
+              const reader = new FileReader();
+              reader.onload = (ev) => { onAdd({ type: 'upload', src: ev.target.result, position }); onClose(); };
+              reader.readAsDataURL(file);
+            }}>Add Image</button>
+          </div>
+        )}
+        {tab === 'gif' && (
+          <div>
+            <label className="block text-sm mb-2 font-medium text-gray-700 dark:text-gray-200">Search GIFs</label>
+            <input type="text" value={gifQuery} onChange={e => setGifQuery(e.target.value)} placeholder="funny cat" className="w-full px-3 py-2 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 mb-2" />
+            <div className="h-32 overflow-y-auto grid grid-cols-3 gap-2 mb-2">
+              {loading ? <div className="col-span-3 text-center text-gray-400">Loading...</div> :
+                gifs.map(gif => (
+                  <img key={gif.id} src={gif.images.fixed_width_small.url} alt={gif.title} className="rounded cursor-pointer hover:scale-105 transition" onClick={() => { onAdd({ type: 'gif', src: gif.images.original.url, position }); onClose(); }} />
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState({
@@ -254,6 +321,8 @@ export default function CanvasPage() {
   const fileInputRef = useRef();
   const isDark = useIsDarkMode();
   const ERASER_RADIUS = 16;
+  const [showAddImageModal, setShowAddImageModal] = useState(false);
+  const [pendingImagePos, setPendingImagePos] = useState(null);
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -336,8 +405,9 @@ export default function CanvasPage() {
         ]
       }));
     } else if (tool === 'image') {
-      fileInputRef.current.click();
-      fileInputRef.current._pendingImagePos = { x, y };
+      setPendingImagePos({ x, y });
+      setShowAddImageModal(true);
+      return;
     } else if (tool === 'text') {
       pushToUndo(elements);
       setElements((prev) => ({
@@ -352,25 +422,17 @@ export default function CanvasPage() {
     }
   };
 
-  // Handle image file selection
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const pos = fileInputRef.current._pendingImagePos || { x: 100, y: 100 };
-      pushToUndo(elements);
-      setElements((prev) => ({
-        ...prev,
-        images: [
-          ...prev.images,
-          { id: Date.now(), x: pos.x, y: pos.y, src: ev.target.result, width: 120, height: 90 }
-        ]
-      }));
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  // Add handler for adding image from modal
+  function handleAddImage({ type, src, position }) {
+    pushToUndo(elements);
+    setElements((prev) => ({
+      ...prev,
+      images: [
+        ...prev.images,
+        { id: Date.now(), x: position.x, y: position.y, src, width: 120, height: 90 }
+      ]
+    }));
+  }
 
   // Undo/Redo logic
   const handleUndo = useCallback(() => {
@@ -564,6 +626,7 @@ export default function CanvasPage() {
         />
       )}
       <BottomToolbar tool={tool} setTool={setTool} />
+      <AddImageModal open={showAddImageModal} onClose={() => setShowAddImageModal(false)} onAdd={handleAddImage} position={pendingImagePos} isDark={isDark} />
     </div>
   );
 }
