@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { LuUndo2, LuRedo2 } from "react-icons/lu";
+import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown } from "react-icons/lu";
 
 const TOOL_SELECT = "select";
 const TOOL_DRAW = "draw";
@@ -56,48 +56,78 @@ const tools = [
 const undoIcon = <LuUndo2 size={22} />;
 const redoIcon = <LuRedo2 size={22} />;
 
-function Toolbar({ tool, setTool, color, setColor, isDark, onUndo, onRedo }) {
-  const palette = isDark ? COLORS_DARK : COLORS_LIGHT;
+// Top Toolbar
+function TopToolbar({ onUndo, onRedo }) {
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 flex items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-2 mb-4 gap-2" style={{ minWidth: 400 }}>
-      {/* Color Picker */}
-      <div className="flex items-center gap-1 mr-4">
-        {palette.map((c) => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            className={`w-5 h-5 rounded-full border-2 ${color === c ? 'border-blue-500' : 'border-gray-300 dark:border-zinc-700'} flex items-center justify-center`}
-            style={{ background: c }}
-            aria-label={`Color ${c}`}
-          />
+    <div className="fixed top-0 left-0 w-full flex items-center justify-end bg-white/80 dark:bg-zinc-900/80 border-b border-gray-200 dark:border-zinc-700 px-4 py-2 z-50 backdrop-blur">
+      {/* Braindump title, top left */}
+      <div className="absolute left-4 top-1 flex items-center select-none">
+        <span style={{
+          fontFamily: 'Poppins, Inter, Montserrat, sans-serif',
+          fontWeight: 700,
+          fontSize: '1.35rem',
+          letterSpacing: '0.04em',
+          color: 'var(--braindump-title-color, #6366f1)', // indigo-500
+          textShadow: '0 1px 8px rgba(99,102,241,0.08)'
+        }}>
+          braindump
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} /></button>
+        <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} /></button>
+        <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} /></button>
+        <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} /></button>
+      </div>
+    </div>
+  );
+}
+
+// Bottom Toolbar
+function BottomToolbar({ tool, setTool }) {
+  const iconSize = 24;
+  return (
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 flex items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-2 mb-4 gap-2" style={{ minWidth: 500 }}>
+      <button title="Select" className={`p-2 rounded-lg ${tool === 'select' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('select')}><LuMousePointer2 size={iconSize} /></button>
+      <button title="Hand" className={`p-2 rounded-lg ${tool === 'hand' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('hand')}><LuHand size={iconSize} /></button>
+      <button title="Draw" className={`p-2 rounded-lg ${tool === 'draw' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('draw')}><LuPencil size={iconSize} /></button>
+      <button title="Eraser" className={`p-2 rounded-lg ${tool === 'eraser' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('eraser')}><LuEraser size={iconSize} /></button>
+      <button title="Sticky Note" className={`p-2 rounded-lg ${tool === 'sticky' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('sticky')}><LuStickyNote size={iconSize} /></button>
+      <button title="Image" className={`p-2 rounded-lg ${tool === 'image' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('image')}><LuImage size={iconSize} /></button>
+      <button title="Text" className={`p-2 rounded-lg ${tool === 'text' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('text')}><LuType size={iconSize} /></button>
+      <button title="Shapes" className={`p-2 rounded-lg ${tool === 'shapes' ? 'bg-gray-200 dark:bg-zinc-700' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'}`} onClick={() => setTool('shapes')}><LuShapes size={iconSize} /></button>
+    </div>
+  );
+}
+
+// Right Toolbar
+function RightToolbar() {
+  return (
+    <div className="fixed top-20 right-6 z-50 flex flex-col items-center gap-4 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-4">
+      {/* Color palette */}
+      <div className="flex flex-wrap gap-1 mb-2">
+        {["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"].map((c) => (
+          <button key={c} className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-zinc-700" style={{ background: c }} />
         ))}
       </div>
-      {/* Tool Buttons */}
-      {tools.map(({ key, label, icon }) => (
-        <button
-          key={key}
-          onClick={() => setTool(key)}
-          title={label}
-          className={`p-2 rounded-lg transition-colors ${tool === key ? "bg-gray-200 dark:bg-zinc-700" : "hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
-        >
-          {icon}
-        </button>
-      ))}
-      {/* Undo/Redo */}
-      <button
-        onClick={onUndo}
-        title="Undo (Ctrl+Z)"
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 ml-4"
-      >
-        {undoIcon}
-      </button>
-      <button
-        onClick={onRedo}
-        title="Redo (Ctrl+Y)"
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
-      >
-        {redoIcon}
-      </button>
+      {/* Opacity slider */}
+      <div className="flex items-center gap-2 w-24">
+        <LuGripHorizontal />
+        <input type="range" min="0" max="1" step="0.01" className="w-full" />
+      </div>
+      {/* Stroke style */}
+      <div className="flex gap-1 mt-2">
+        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
+        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
+        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
+      </div>
+      {/* Size options */}
+      <div className="flex gap-1 mt-2">
+        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">S</button>
+        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">M</button>
+        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">L</button>
+        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">XL</button>
+      </div>
     </div>
   );
 }
@@ -107,49 +137,54 @@ function isNearPoint(x, y, pt, threshold = 8) {
 }
 
 export default function CanvasPage() {
-  const [tool, setTool] = useState(TOOL_DRAW);
+  const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const [lines, setLines] = useState([]); // Each line: { points: [{x, y}], color }
   const [drawing, setDrawing] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  const [eraserPos, setEraserPos] = useState(null); // {x, y} or null
   const canvasRef = useRef(null);
   const isDark = useIsDarkMode();
+  const ERASER_RADIUS = 16;
 
   // Mouse events for drawing and erasing
   const handlePointerDown = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    if (tool === TOOL_DRAW) {
+    if (tool === 'draw') {
       pushToUndo(lines);
       setLines((prev) => [...prev, { points: [{ x, y }], color }]);
       setDrawing(true);
-    } else if (tool === TOOL_ERASE) {
+    } else if (tool === 'eraser') {
       pushToUndo(lines);
       eraseAt(x, y);
       setDrawing(true);
+      setEraserPos({ x, y });
     }
   };
 
   const handlePointerMove = (e) => {
-    if (!drawing) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    if (tool === TOOL_DRAW) {
+    if (!drawing) return;
+    if (tool === 'draw') {
       setLines((prev) => {
         const newLines = [...prev];
         newLines[newLines.length - 1].points.push({ x, y });
         return newLines;
       });
-    } else if (tool === TOOL_ERASE) {
+    } else if (tool === 'eraser') {
       eraseAt(x, y);
+      setEraserPos({ x, y });
     }
   };
 
   const handlePointerUp = () => {
     setDrawing(false);
+    setEraserPos(null);
   };
 
   // Erase lines near pointer
@@ -219,21 +254,41 @@ export default function CanvasPage() {
 
   return (
     <div className="h-screen w-screen relative bg-gray-50 dark:bg-dark">
+      <TopToolbar onUndo={handleUndo} onRedo={handleRedo} />
+      <RightToolbar />
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
         height={window.innerHeight}
         className="block absolute top-0 left-0 w-full h-full"
         style={{
-          cursor: tool === TOOL_DRAW ? "crosshair" : tool === TOOL_ERASE ? "pointer" : "default",
-          background: "transparent"
+          cursor: tool === 'draw' ? 'crosshair' : tool === 'eraser' ? 'pointer' : 'default',
+          background: 'transparent',
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       />
-      <Toolbar tool={tool} setTool={setTool} color={color} setColor={setColor} isDark={isDark} onUndo={handleUndo} onRedo={handleRedo} />
+      {/* Eraser hover animation */}
+      {tool === 'eraser' && drawing && eraserPos && (
+        <div
+          style={{
+            position: 'fixed',
+            left: eraserPos.x + canvasRef.current?.getBoundingClientRect().left - ERASER_RADIUS,
+            top: eraserPos.y + canvasRef.current?.getBoundingClientRect().top - ERASER_RADIUS,
+            width: ERASER_RADIUS * 2,
+            height: ERASER_RADIUS * 2,
+            pointerEvents: 'none',
+            borderRadius: '50%',
+            border: '2px solid #f87171', // red-400
+            background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+            boxShadow: '0 0 8px 2px rgba(248,113,113,0.2)',
+            zIndex: 1000,
+          }}
+        />
+      )}
+      <BottomToolbar tool={tool} setTool={setTool} />
     </div>
   );
 }
