@@ -318,7 +318,6 @@ export default function CanvasPage() {
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const canvasRef = useRef(null);
-  const fileInputRef = useRef();
   const isDark = useIsDarkMode();
   const ERASER_RADIUS = 16;
   const [showAddImageModal, setShowAddImageModal] = useState(false);
@@ -599,14 +598,6 @@ export default function CanvasPage() {
           )}
         </Draggable>
       ))}
-      {/* Hidden file input for image upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleImageChange}
-      />
       {/* Eraser hover animation */}
       {tool === 'eraser' && drawing && eraserPos && (
         <div
