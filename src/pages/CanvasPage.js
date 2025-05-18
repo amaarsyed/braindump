@@ -504,23 +504,28 @@ export default function CanvasPage() {
     return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
   }
 
-  // Add mouse move handler
+  // Add mouse move handler with throttling
   const handleMouseMove = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
-      setMousePos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+      requestAnimationFrame(() => {
+        setMousePos({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
       });
     }
   };
 
-  // Update pointer move handler
+  // Update pointer move handler with throttling
   const handlePointerMove = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setMousePos({ x, y });
+    
+    requestAnimationFrame(() => {
+      setMousePos({ x, y });
+    });
     
     if (!drawing) return;
     if (tool === 'draw') {
@@ -826,7 +831,9 @@ export default function CanvasPage() {
             background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
             boxShadow: '0 0 8px 2px rgba(248,113,113,0.2)',
             zIndex: 1000,
-            transition: 'all 0.1s ease-out',
+            transition: 'transform 0.05s ease-out',
+            transform: 'translate3d(0, 0, 0)',
+            willChange: 'transform',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
