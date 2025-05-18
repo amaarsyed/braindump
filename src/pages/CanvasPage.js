@@ -83,6 +83,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
   // Detect dark mode for icon color
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [copied, setCopied] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
@@ -112,7 +113,26 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
       <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} color={iconColor} /></button>
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
       <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
-      <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} color={iconColor} /></button>
+      {/* Preferences with dropdown */}
+      <div className="relative">
+        <button
+          title="Preferences"
+          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
+          onClick={() => setDropdownOpen((v) => !v)}
+        >
+          <LuSettings2 size={22} color={iconColor} />
+        </button>
+        {dropdownOpen && (
+          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-50 text-sm">
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition rounded"
+              // onClick={...} // Toggle logic in next step
+            >
+              Toggle Dark/Light Mode
+            </button>
+          </div>
+        )}
+      </div>
       {/* Share icon button */}
       <div className="relative">
         <button
