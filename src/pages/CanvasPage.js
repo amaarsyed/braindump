@@ -11,6 +11,13 @@ const TOOL_ELLIPSE = "ellipse";
 const TOOL_LINE = "line";
 const TOOL_TEXT = "text";
 
+const FONT_OPTIONS = [
+  { label: 'Inter', value: 'Inter, sans-serif' },
+  { label: 'Comic Sans', value: 'Comic Sans MS, Comic Sans, cursive' },
+  { label: 'Serif', value: 'serif' },
+  { label: 'Mono', value: 'monospace' },
+  { label: 'Montserrat', value: 'Montserrat, sans-serif' },
+];
 
 const COLORS_LIGHT = [
   "#000000", "#ffffff", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"
@@ -199,23 +206,24 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity }) {
+function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange }) {
   const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
   return (
     <div className="fixed top-20 right-6 z-40 flex flex-col items-center gap-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-5 min-w-[180px]">
-      {/* Color palette */}
+      {/* Color palette for sticky notes */}
       <div className="w-full">
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Color</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Sticky Color</div>
         <div className="flex flex-wrap gap-2 mb-2">
           {COLORS.map((c) => (
             <button
               key={c}
-              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'}`}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${stickyFont && color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'} ${!selectedStickyId ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{ background: c }}
-              onClick={() => setColor(c)}
+              onClick={() => selectedStickyId && onStickyColorChange(c)}
               aria-label={`Select color ${c}`}
+              disabled={!selectedStickyId}
             >
-              {color === c && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
+              {color === c && selectedStickyId && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
             </button>
           ))}
         </div>
@@ -230,6 +238,33 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
           <LuGripHorizontal />
           <input type="range" min="0.1" max="1" step="0.01" value={opacity} onChange={e => setOpacity(Number(e.target.value))} className="w-full" />
         </div>
+      </div>
+      {/* Font dropdown for sticky notes */}
+      <div className="w-full">
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Sticky Font</div>
+        <select
+          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
+          value={stickyFont || ''}
+          onChange={e => selectedStickyId && onStickyFontChange(e.target.value)}
+          disabled={!selectedStickyId}
+        >
+          <option value="" disabled>Select font</option>
+          {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+        </select>
+      </div>
+      {/* Text color dropdown for text boxes */}
+      <div className="w-full">
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Text Color</div>
+        <select
+          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
+          value={textFont || ''}
+          onChange={e => selectedTextId && onTextColorChange(e.target.value)}
+          disabled={!selectedTextId}
+        >
+          {COLORS.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
       </div>
       {/* Eraser size control - only show when eraser tool is selected */}
       {tool === 'eraser' && (
@@ -364,14 +399,6 @@ function AddImageModal({ open, onClose, onAdd, position, isDark }) {
     </div>
   );
 }
-
-const FONT_OPTIONS = [
-  { label: 'Inter', value: 'Inter, sans-serif' },
-  { label: 'Comic Sans', value: 'Comic Sans MS, Comic Sans, cursive' },
-  { label: 'Serif', value: 'serif' },
-  { label: 'Mono', value: 'monospace' },
-  { label: 'Montserrat', value: 'Montserrat, sans-serif' },
-];
 
 function StickyNote({
   id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, onRotate
@@ -516,6 +543,7 @@ export default function CanvasPage() {
   const [editingTextId, setEditingTextId] = useState(null);
   const [editingStickyId, setEditingStickyId] = useState(null);
   const [selectedStickyId, setSelectedStickyId] = useState(null);
+  const [selectedTextId, setSelectedTextId] = useState(null);
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const [opacity, setOpacity] = useState(1);
@@ -533,6 +561,7 @@ export default function CanvasPage() {
     return randomId;
   });
   const socketRef = useRef(null);
+  const [stickyFont, setStickyFont] = useState('Inter, sans-serif');
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -763,7 +792,52 @@ export default function CanvasPage() {
     >
       <LogoStandalone />
       <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} boardId={boardId} />
-      <RightToolbar tool={tool} eraserSize={eraserSize} setEraserSize={setEraserSize} color={color} setColor={setColor} opacity={opacity} setOpacity={setOpacity} />
+      <RightToolbar
+        tool={tool}
+        eraserSize={eraserSize}
+        setEraserSize={setEraserSize}
+        color={color}
+        setColor={setColor}
+        opacity={opacity}
+        setOpacity={setOpacity}
+        selectedStickyId={selectedStickyId}
+        selectedTextId={selectedTextId}
+        stickyFont={selectedStickyId ? elements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
+        textFont={selectedTextId ? elements.textBoxes.find(t => t.id === selectedTextId)?.font : ''}
+        onStickyColorChange={(newColor) => {
+          if (!selectedStickyId) return;
+          pushToUndo(elements);
+          setElements((prev) => ({
+            ...prev,
+            stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, color: newColor } : n)
+          }));
+        }}
+        onStickyFontChange={(newFont) => {
+          if (!selectedStickyId) return;
+          pushToUndo(elements);
+          setElements((prev) => ({
+            ...prev,
+            stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, font: newFont } : n)
+          }));
+          setStickyFont(newFont);
+        }}
+        onTextColorChange={(newColor) => {
+          if (!selectedTextId) return;
+          pushToUndo(elements);
+          setElements((prev) => ({
+            ...prev,
+            textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, color: newColor } : t)
+          }));
+        }}
+        onTextFontChange={(newFont) => {
+          if (!selectedTextId) return;
+          pushToUndo(elements);
+          setElements((prev) => ({
+            ...prev,
+            textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, font: newFont } : t)
+          }));
+        }}
+      />
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
@@ -864,27 +938,34 @@ export default function CanvasPage() {
             }));
           }}
         >
-          {editingTextId === tb.id ? (
-            <input
-              autoFocus
-              value={tb.text}
-              onChange={e => setElements((prev) => ({
-                ...prev,
-                textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, text: e.target.value } : t)
-              }))}
-              onBlur={() => setEditingTextId(null)}
-              className="rounded bg-white/80 dark:bg-zinc-900/80 px-2 py-1 text-base shadow border border-gray-200 dark:border-zinc-700"
-              style={{ fontFamily: 'inherit', fontWeight: 500, minWidth: 60 }}
-            />
-          ) : (
-            <div
-              className="rounded bg-white/80 dark:bg-zinc-900/80 px-2 py-1 text-base shadow border border-gray-200 dark:border-zinc-700 cursor-pointer"
-              style={{ fontFamily: 'inherit', fontWeight: 500, minWidth: 60 }}
-              onDoubleClick={() => setEditingTextId(tb.id)}
-            >
-              {tb.text}
-            </div>
-          )}
+          <div
+            className={`rounded bg-white/80 dark:bg-zinc-900/80 px-2 py-1 text-base shadow border border-gray-200 dark:border-zinc-700 cursor-pointer ${selectedTextId === tb.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+            style={{
+              fontFamily: tb.font || 'inherit',
+              fontWeight: 500,
+              minWidth: 60,
+              color: tb.color || '#222',
+              transition: 'box-shadow 0.2s, transform 0.2s',
+            }}
+            onClick={() => setSelectedTextId(tb.id)}
+            onDoubleClick={() => setEditingTextId(tb.id)}
+          >
+            {editingTextId === tb.id ? (
+              <input
+                autoFocus
+                value={tb.text}
+                onChange={e => setElements((prev) => ({
+                  ...prev,
+                  textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, text: e.target.value } : t)
+                }))}
+                onBlur={() => setEditingTextId(null)}
+                className="bg-transparent outline-none w-full"
+                style={{ fontFamily: tb.font || 'inherit', color: tb.color || '#222' }}
+              />
+            ) : (
+              tb.text
+            )}
+          </div>
         </Draggable>
       ))}
       {/* Eraser cursor and preview */}
