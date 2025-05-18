@@ -589,6 +589,7 @@ export default function CanvasPage() {
   const [editingStickySelection, setEditingStickySelection] = useState(null);
   const editingTextRef = useRef(null);
   const [editingTextSelection, setEditingTextSelection] = useState(null);
+  const [lastEraserPos, setLastEraserPos] = useState(null);
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -647,8 +648,20 @@ export default function CanvasPage() {
         return { ...prev, lines: newLines };
       });
     } else if (tool === 'eraser') {
-      eraseAt(x, y);
+      // Interpolate between last and current position for smooth erasing
+      if (lastEraserPos) {
+        const steps = Math.ceil(Math.hypot(x - lastEraserPos.x, y - lastEraserPos.y) / (eraserSize / 2));
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const ix = lastEraserPos.x + (x - lastEraserPos.x) * t;
+          const iy = lastEraserPos.y + (y - lastEraserPos.y) * t;
+          eraseAt(ix, iy);
+        }
+      } else {
+        eraseAt(x, y);
+      }
       setEraserPos({ x, y });
+      setLastEraserPos({ x, y });
     }
   };
 
@@ -668,6 +681,7 @@ export default function CanvasPage() {
       eraseAt(x, y);
       setDrawing(true);
       setEraserPos({ x, y });
+      setLastEraserPos({ x, y });
       setEraserPreview(true);
     }
   };
@@ -675,6 +689,7 @@ export default function CanvasPage() {
   const handlePointerUp = () => {
     setDrawing(false);
     setEraserPos(null);
+    setLastEraserPos(null);
     setEraserPreview(false);
   };
 
