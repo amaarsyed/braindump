@@ -149,25 +149,43 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar({ tool, eraserSize, setEraserSize }) {
+function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity }) {
+  const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
   return (
-    <div className="fixed top-20 right-6 z-50 flex flex-col items-center gap-4 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-4">
+    <div className="fixed top-20 right-6 z-50 flex flex-col items-center gap-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-5 min-w-[180px]">
       {/* Color palette */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"].map((c) => (
-          <button key={c} className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-zinc-700" style={{ background: c }} />
-        ))}
+      <div className="w-full">
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Color</div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'}`}
+              style={{ background: c }}
+              onClick={() => setColor(c)}
+              aria-label={`Select color ${c}`}
+            >
+              {color === c && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
+            </button>
+          ))}
+        </div>
       </div>
       {/* Opacity slider */}
-      <div className="flex items-center gap-2 w-24">
-        <LuGripHorizontal />
-        <input type="range" min="0" max="1" step="0.01" className="w-full" />
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Opacity</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <LuGripHorizontal />
+          <input type="range" min="0.1" max="1" step="0.01" value={opacity} onChange={e => setOpacity(Number(e.target.value))} className="w-full" />
+        </div>
       </div>
       {/* Eraser size control - only show when eraser tool is selected */}
       {tool === 'eraser' && (
-        <div className="flex flex-col items-center gap-2 w-24">
-          <div className="flex items-center justify-between w-full">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Size</span>
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Eraser Size</span>
             <span className="text-xs text-gray-500 dark:text-gray-400">{eraserSize}px</span>
           </div>
           <input
@@ -180,19 +198,6 @@ function RightToolbar({ tool, eraserSize, setEraserSize }) {
           />
         </div>
       )}
-      {/* Stroke style */}
-      <div className="flex gap-1 mt-2">
-        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
-        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
-        <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
-      </div>
-      {/* Size options */}
-      <div className="flex gap-1 mt-2">
-        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">S</button>
-        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">M</button>
-        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">L</button>
-        <button className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 text-xs">XL</button>
-      </div>
     </div>
   );
 }
@@ -472,6 +477,7 @@ export default function CanvasPage() {
   const [editingStickyId, setEditingStickyId] = useState(null);
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
+  const [opacity, setOpacity] = useState(1);
   const canvasRef = useRef(null);
   const isDark = useIsDarkMode();
   const [showAddImageModal, setShowAddImageModal] = useState(false);
@@ -680,7 +686,7 @@ export default function CanvasPage() {
     >
       <LogoStandalone />
       <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} />
-      <RightToolbar tool={tool} eraserSize={eraserSize} setEraserSize={setEraserSize} />
+      <RightToolbar tool={tool} eraserSize={eraserSize} setEraserSize={setEraserSize} color={color} setColor={setColor} opacity={opacity} setOpacity={setOpacity} />
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
