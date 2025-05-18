@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain } from "react-icons/lu";
 import { motion } from 'framer-motion';
+import io from "socket.io-client";
 
 const TOOL_SELECT = "select";
 const TOOL_DRAW = "draw";
@@ -459,6 +460,8 @@ function StickyNote({
   );
 }
 
+const SOCKET_SERVER_URL = "http://localhost:4000"; // Change if deploying
+
 export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState({
@@ -483,6 +486,15 @@ export default function CanvasPage() {
   const [showAddImageModal, setShowAddImageModal] = useState(false);
   const [pendingImagePos, setPendingImagePos] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [boardId] = useState(() => {
+    // Use URL param or random for now
+    const urlId = window.location.hash.replace('#', '');
+    if (urlId) return urlId;
+    const randomId = Math.random().toString(36).slice(2, 10);
+    window.location.hash = randomId;
+    return randomId;
+  });
+  const socketRef = useRef(null);
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -681,6 +693,30 @@ export default function CanvasPage() {
       setShowAddImageModal(true);
     }
   }
+
+  // --- SOCKET.IO LOGIC ---
+  useEffect(() => {
+    const socket = io(SOCKET_SERVER_URL);
+    socketRef.current = socket;
+    socket.emit('join-board', boardId);
+    socket.on('board-state', (data) => {
+      setElements(data);
+    });
+    socket.on('board-update', (data) => {
+      setElements(data);
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, [boardId]);
+
+  // Broadcast changes to others
+  useEffect(() => {
+    if (socketRef.current) {
+      socketRef.current.emit('board-update', { boardId, data: elements });
+    }
+    // eslint-disable-next-line
+  }, [elements]);
 
   return (
     <div 
