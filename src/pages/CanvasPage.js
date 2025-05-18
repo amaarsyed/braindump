@@ -115,7 +115,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
       <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
       {/* Preferences with dropdown */}
-      <div className="relative z-[100]">
+      <div className="relative z-[9999]">
         <button
           title="Preferences"
           className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -124,7 +124,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
           <LuSettings2 size={22} color={iconColor} />
         </button>
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-[200] text-sm">
+          <div className="absolute right-0 mt-2 w-44 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-[9999] text-sm bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm pointer-events-auto">
             <button
               className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition rounded"
               onClick={handleDropdownToggleDark}
@@ -192,7 +192,7 @@ function BottomToolbar({ tool, setTool }) {
 function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity }) {
   const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
   return (
-    <div className="fixed top-20 right-6 z-50 flex flex-col items-center gap-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-5 min-w-[180px]">
+    <div className="fixed top-20 right-6 z-40 flex flex-col items-center gap-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-5 min-w-[180px]">
       {/* Color palette */}
       <div className="w-full">
         <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Color</div>
