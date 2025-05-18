@@ -554,7 +554,7 @@ export default function CanvasPage() {
       pushToUndo(elements);
       setElements((prev) => ({
         ...prev,
-        lines: [...prev.lines, { points: [{ x, y }], color }],
+        lines: [...prev.lines, { points: [{ x, y }], color, opacity }],
       }));
       setDrawing(true);
     } else if (tool === 'eraser') {
@@ -658,7 +658,7 @@ export default function CanvasPage() {
     elements.lines.forEach((line) => {
       ctx.save();
       ctx.strokeStyle = line.color;
-      ctx.globalAlpha = opacity;
+      ctx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       line.points.forEach((pt, i) => {
@@ -668,7 +668,7 @@ export default function CanvasPage() {
       ctx.stroke();
       ctx.restore();
     });
-  }, [elements.lines, opacity]);
+  }, [elements.lines]);
 
   // Replace setTool usage to intercept 'image' tool selection
   function handleToolbarToolSelect(selectedTool) {
