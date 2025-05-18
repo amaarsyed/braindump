@@ -79,9 +79,10 @@ function DarkModeToggleTop() {
   );
 }
 
-function TopControlsBox({ onUndo, onRedo }) {
+function TopControlsBox({ onUndo, onRedo, boardId }) {
   // Detect dark mode for icon color
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
@@ -99,12 +100,32 @@ function TopControlsBox({ onUndo, onRedo }) {
     }
     setIsDark(!isDark);
   };
+  // Share logic
+  const url = `${window.location.origin}${window.location.pathname}#${boardId}`;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <div className="fixed top-4 right-6 z-50 flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-2">
       <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} color={iconColor} /></button>
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
       <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
       <button title="Preferences" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuSettings2 size={22} color={iconColor} /></button>
+      {/* Share icon button */}
+      <div className="relative">
+        <button
+          title="Copy board link"
+          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
+          onClick={handleCopy}
+        >
+          <LuShare2 size={22} color={iconColor} />
+        </button>
+        {copied && (
+          <div className="absolute right-0 mt-2 px-2 py-1 bg-zinc-900 text-white text-xs rounded shadow">Link copied!</div>
+        )}
+      </div>
       <button title={isDark ? "Switch to light mode" : "Switch to dark mode"} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={toggleDark}>
         {isDark ? <LuSun size={22} color="#fff" /> : <LuMoon size={22} color="#222" />}
       </button>
@@ -462,31 +483,6 @@ function StickyNote({
 
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Change if deploying
 
-function ShareBoardButton({ boardId }) {
-  const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}${window.location.pathname}#${boardId}`;
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <div className="fixed top-4 right-56 z-50">
-      <button
-        onClick={handleCopy}
-        className="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-        title="Copy board link"
-      >
-        <LuShare2 size={18} />
-        <span className="text-sm font-medium">Share</span>
-      </button>
-      {copied && (
-        <div className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-900 text-white text-xs rounded shadow">Link copied!</div>
-      )}
-    </div>
-  );
-}
-
 export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState({
@@ -749,7 +745,7 @@ export default function CanvasPage() {
       onMouseMove={handleMouseMove}
     >
       <LogoStandalone />
-      <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} />
+      <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} boardId={boardId} />
       <RightToolbar tool={tool} eraserSize={eraserSize} setEraserSize={setEraserSize} color={color} setColor={setColor} opacity={opacity} setOpacity={setOpacity} />
       <canvas
         ref={canvasRef}
@@ -923,7 +919,6 @@ export default function CanvasPage() {
       )}
       <BottomToolbar tool={tool} setTool={handleToolbarToolSelect} />
       <AddImageModal open={showAddImageModal} onClose={() => setShowAddImageModal(false)} onAdd={handleAddImage} position={pendingImagePos} isDark={isDark} />
-      <ShareBoardButton boardId={boardId} />
     </div>
   );
 }
