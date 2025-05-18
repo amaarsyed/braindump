@@ -401,7 +401,7 @@ function AddImageModal({ open, onClose, onAdd, position, isDark }) {
 }
 
 function StickyNote({
-  id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, onRotate
+  id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, onRotate, editingRef, onSelectionChange
 }) {
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
@@ -470,10 +470,18 @@ function StickyNote({
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && contentRef.current && contentRef.current.contains(sel.anchorNode)) {
       setSelection(sel.getRangeAt(0));
+      if (onSelectionChange) onSelectionChange(sel.getRangeAt(0));
     } else {
       setSelection(null);
+      if (onSelectionChange) onSelectionChange(null);
     }
   }
+
+  useEffect(() => {
+    if (editingRef && isEditing) {
+      editingRef.current = contentRef.current;
+    }
+  }, [editingRef, isEditing]);
 
   return (
     <motion.div
@@ -577,6 +585,10 @@ export default function CanvasPage() {
   });
   const socketRef = useRef(null);
   const [stickyFont, setStickyFont] = useState('Inter, sans-serif');
+  const editingStickyRef = useRef(null);
+  const [editingStickySelection, setEditingStickySelection] = useState(null);
+  const editingTextRef = useRef(null);
+  const [editingTextSelection, setEditingTextSelection] = useState(null);
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -800,6 +812,41 @@ export default function CanvasPage() {
     // eslint-disable-next-line
   }, [elements]);
 
+  function applyStyleToSelection(styleType, value) {
+    if (editingStickyRef.current && editingStickySelection) {
+      editingStickyRef.current.focus();
+      document.getSelection().removeAllRanges();
+      document.getSelection().addRange(editingStickySelection);
+      if (styleType === 'color') {
+        document.execCommand('foreColor', false, value);
+      } else if (styleType === 'font') {
+        document.execCommand('fontName', false, value);
+      }
+    }
+  }
+
+  function handleTextSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editingTextRef.current && editingTextRef.current.contains(sel.anchorNode)) {
+      setEditingTextSelection(sel.getRangeAt(0));
+    } else {
+      setEditingTextSelection(null);
+    }
+  }
+
+  function applyStyleToTextSelection(styleType, value) {
+    if (editingTextRef.current && editingTextSelection) {
+      editingTextRef.current.focus();
+      document.getSelection().removeAllRanges();
+      document.getSelection().addRange(editingTextSelection);
+      if (styleType === 'color') {
+        document.execCommand('foreColor', false, value);
+      } else if (styleType === 'font') {
+        document.execCommand('fontName', false, value);
+      }
+    }
+  }
+
   return (
     <div 
       className="h-screen w-screen relative bg-gray-50 dark:bg-dark"
@@ -920,6 +967,8 @@ export default function CanvasPage() {
               stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, rotation } : n)
             }));
           }}
+          editingRef={editingStickyId === note.id ? editingStickyRef : undefined}
+          onSelectionChange={editingStickyId === note.id ? setEditingStickySelection : undefined}
         />
       ))}
       {/* Images */}
@@ -963,19 +1012,23 @@ export default function CanvasPage() {
               transition: 'box-shadow 0.2s, transform 0.2s',
             }}
             onClick={() => setSelectedTextId(tb.id)}
-            onDoubleClick={() => setEditingTextId(tb.id)}
           >
             {editingTextId === tb.id ? (
-              <input
-                autoFocus
-                value={tb.text}
-                onChange={e => setElements((prev) => ({
-                  ...prev,
-                  textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, text: e.target.value } : t)
-                }))}
-                onBlur={() => setEditingTextId(null)}
+              <div
+                ref={editingTextId === tb.id ? editingTextRef : undefined}
+                contentEditable
+                suppressContentEditableWarning
                 className="bg-transparent outline-none w-full"
                 style={{ fontFamily: tb.font || 'inherit', color: tb.color || '#222' }}
+                onBlur={() => setEditingTextId(null)}
+                onInput={e => setElements((prev) => ({
+                  ...prev,
+                  textBoxes: prev.textBoxes.map(t => t.id === tb.id ? { ...t, text: e.currentTarget.innerHTML } : t)
+                }))}
+                onSelect={handleTextSelection}
+                onKeyUp={handleTextSelection}
+                onMouseUp={handleTextSelection}
+                dangerouslySetInnerHTML={{ __html: tb.text }}
               />
             ) : (
               tb.text
