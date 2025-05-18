@@ -408,6 +408,10 @@ function StickyNote({
   const [rotating, setRotating] = useState(false);
   const [local, setLocal] = useState({ x, y, width, height, rotation });
   const noteRef = useRef();
+  const contentRef = useRef();
+
+  // Track selection for rich text
+  const [selection, setSelection] = useState(null);
 
   // Drag logic
   function handleDrag(e, info) {
@@ -461,6 +465,16 @@ function StickyNote({
     window.addEventListener('pointerup', onUp);
   }
 
+  // Handle selection change
+  function handleSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && contentRef.current && contentRef.current.contains(sel.anchorNode)) {
+      setSelection(sel.getRangeAt(0));
+    } else {
+      setSelection(null);
+    }
+  }
+
   return (
     <motion.div
       ref={noteRef}
@@ -488,31 +502,32 @@ function StickyNote({
     >
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1 bg-white/60 dark:bg-zinc-900/60 rounded-t-lg" style={{ cursor: 'move', borderBottom: '1px solid #eee' }}>
-        <select value={font} onChange={e => onChange && onChange(e.target.value)} className="text-xs rounded px-1 py-0.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700">
-          {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-        </select>
         <button onClick={onEdit} className="ml-auto text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800">✏️</button>
         <button onClick={onDelete} className="text-xs px-1 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900">🗑️</button>
         <button onPointerDown={handleRotate} className="text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 cursor-alias">⟳</button>
       </div>
       {/* Content */}
       {isEditing ? (
-        <textarea
-          autoFocus
-          value={text}
-          onChange={e => onChange && onChange(e.target.value)}
-          onBlur={onEdit}
+        <div
+          ref={contentRef}
+          contentEditable
+          suppressContentEditableWarning
           className="w-full h-full bg-transparent resize-none outline-none p-2 text-base rounded-b-lg"
-          style={{ fontFamily: font, background: 'transparent' }}
+          style={{ fontFamily: font, background: 'transparent', minHeight: 40, minWidth: 80 }}
+          onBlur={onEdit}
+          onInput={e => onChange && onChange(e.currentTarget.innerHTML)}
+          onSelect={handleSelection}
+          onKeyUp={handleSelection}
+          onMouseUp={handleSelection}
+          dangerouslySetInnerHTML={{ __html: text }}
         />
       ) : (
         <div
           className="w-full h-full p-2 text-base rounded-b-lg cursor-pointer"
           style={{ fontFamily: font, background: 'transparent', minHeight: 40, minWidth: 80 }}
           onDoubleClick={onEdit}
-        >
-          {text}
-        </div>
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
       )}
       {/* Resize handle */}
       <div
