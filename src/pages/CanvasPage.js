@@ -374,7 +374,7 @@ const FONT_OPTIONS = [
 ];
 
 function StickyNote({
-  id, x, y, width, height, rotation, color, font, text, isEditing, onChange, onEdit, onDelete, onDrag, onResize, onRotate, colorPalette, onColorChange, onFontChange
+  id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, onRotate
 }) {
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
@@ -434,18 +434,10 @@ function StickyNote({
     window.addEventListener('pointerup', onUp);
   }
 
-  // Font and color change
-  function handleFontChange(e) {
-    if (onFontChange) onFontChange(e.target.value);
-  }
-  function handleColorChange(c) {
-    if (onColorChange) onColorChange(c);
-  }
-
   return (
     <motion.div
       ref={noteRef}
-      className="absolute shadow-lg rounded-lg"
+      className={`absolute shadow-lg rounded-lg ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
       style={{
         left: local.x,
         top: local.y,
@@ -465,17 +457,13 @@ function StickyNote({
       onDragStart={() => setDragging(true)}
       onDragEnd={(e, info) => { setDragging(false); if (onDrag) onDrag({ x: info.point.x, y: info.point.y }); }}
       onDrag={handleDrag}
+      onClick={onClick}
     >
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1 bg-white/60 dark:bg-zinc-900/60 rounded-t-lg" style={{ cursor: 'move', borderBottom: '1px solid #eee' }}>
-        <select value={font} onChange={handleFontChange} className="text-xs rounded px-1 py-0.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700">
+        <select value={font} onChange={e => onChange && onChange(e.target.value)} className="text-xs rounded px-1 py-0.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700">
           {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
         </select>
-        <div className="flex gap-0.5 ml-2">
-          {colorPalette.map(c => (
-            <button key={c} className="w-4 h-4 rounded-full border-2 border-white dark:border-zinc-700" style={{ background: c }} onClick={() => handleColorChange(c)} />
-          ))}
-        </div>
         <button onClick={onEdit} className="ml-auto text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800">✏️</button>
         <button onClick={onDelete} className="text-xs px-1 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900">🗑️</button>
         <button onPointerDown={handleRotate} className="text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 cursor-alias">⟳</button>
@@ -527,6 +515,7 @@ export default function CanvasPage() {
   const [eraserPreview, setEraserPreview] = useState(false);
   const [editingTextId, setEditingTextId] = useState(null);
   const [editingStickyId, setEditingStickyId] = useState(null);
+  const [selectedStickyId, setSelectedStickyId] = useState(null);
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const [opacity, setOpacity] = useState(1);
@@ -803,6 +792,8 @@ export default function CanvasPage() {
           font={note.font || "Inter, sans-serif"}
           text={note.text}
           isEditing={editingStickyId === note.id}
+          isSelected={selectedStickyId === note.id}
+          onClick={() => setSelectedStickyId(note.id)}
           onChange={(newText) => {
             pushToUndo(elements);
             setElements((prev) => ({
@@ -817,6 +808,7 @@ export default function CanvasPage() {
               ...prev,
               stickyNotes: prev.stickyNotes.filter(n => n.id !== note.id)
             }));
+            if (selectedStickyId === note.id) setSelectedStickyId(null);
           }}
           onDrag={(pos) => {
             pushToUndo(elements);
@@ -837,21 +829,6 @@ export default function CanvasPage() {
             setElements((prev) => ({
               ...prev,
               stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, rotation } : n)
-            }));
-          }}
-          colorPalette={COLORS_LIGHT}
-          onColorChange={(newColor) => {
-            pushToUndo(elements);
-            setElements((prev) => ({
-              ...prev,
-              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, color: newColor } : n)
-            }));
-          }}
-          onFontChange={(newFont) => {
-            pushToUndo(elements);
-            setElements((prev) => ({
-              ...prev,
-              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, font: newFont } : n)
             }));
           }}
         />
