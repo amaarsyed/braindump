@@ -128,7 +128,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
             <div className="flex items-center justify-between px-4 py-2 gap-3">
               <div className="flex items-center gap-2">
                 <LuMoon size={18} className="text-zinc-500 dark:text-zinc-200" />
-                <span className="font-medium">Dark Mode</span>
+                <span className="font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
               </div>
               <button
                 aria-label="Toggle dark mode"
