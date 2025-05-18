@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain } from "react-icons/lu";
+import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain, LuShare2 } from "react-icons/lu";
 import { motion } from 'framer-motion';
 import io from "socket.io-client";
 
@@ -462,6 +462,31 @@ function StickyNote({
 
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Change if deploying
 
+function ShareBoardButton({ boardId }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}${window.location.pathname}#${boardId}`;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="fixed top-4 right-56 z-50">
+      <button
+        onClick={handleCopy}
+        className="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+        title="Copy board link"
+      >
+        <LuShare2 size={18} />
+        <span className="text-sm font-medium">Share</span>
+      </button>
+      {copied && (
+        <div className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-900 text-white text-xs rounded shadow">Link copied!</div>
+      )}
+    </div>
+  );
+}
+
 export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState({
@@ -898,6 +923,7 @@ export default function CanvasPage() {
       )}
       <BottomToolbar tool={tool} setTool={handleToolbarToolSelect} />
       <AddImageModal open={showAddImageModal} onClose={() => setShowAddImageModal(false)} onAdd={handleAddImage} position={pendingImagePos} isDark={isDark} />
+      <ShareBoardButton boardId={boardId} />
     </div>
   );
 }
