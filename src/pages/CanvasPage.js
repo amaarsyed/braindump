@@ -149,7 +149,7 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar() {
+function RightToolbar({ tool, eraserSize, setEraserSize }) {
   return (
     <div className="fixed top-20 right-6 z-50 flex flex-col items-center gap-4 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-4">
       {/* Color palette */}
@@ -163,6 +163,23 @@ function RightToolbar() {
         <LuGripHorizontal />
         <input type="range" min="0" max="1" step="0.01" className="w-full" />
       </div>
+      {/* Eraser size control - only show when eraser tool is selected */}
+      {tool === 'eraser' && (
+        <div className="flex flex-col items-center gap-2 w-24">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Size</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{eraserSize}px</span>
+          </div>
+          <input
+            type="range"
+            min="8"
+            max="64"
+            value={eraserSize}
+            onChange={(e) => setEraserSize(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+      )}
       {/* Stroke style */}
       <div className="flex gap-1 mt-2">
         <button className="p-1 rounded border border-gray-300 dark:border-zinc-700"><LuChevronDown /></button>
@@ -448,16 +465,18 @@ export default function CanvasPage() {
   const [drawing, setDrawing] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  const [eraserSize, setEraserSize] = useState(16);
   const [eraserPos, setEraserPos] = useState(null);
+  const [eraserPreview, setEraserPreview] = useState(false);
   const [editingTextId, setEditingTextId] = useState(null);
   const [editingStickyId, setEditingStickyId] = useState(null);
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const canvasRef = useRef(null);
   const isDark = useIsDarkMode();
-  const ERASER_RADIUS = 16;
   const [showAddImageModal, setShowAddImageModal] = useState(false);
   const [pendingImagePos, setPendingImagePos] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
@@ -469,7 +488,9 @@ export default function CanvasPage() {
   function eraseAt(x, y) {
     setElements((prev) => {
       // Erase lines
-      const lines = prev.lines.filter(line => !line.points.some(pt => isNearPoint(x, y, pt)));
+      const lines = prev.lines.filter(line => !line.points.some(pt => 
+        Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2
+      ));
       // Erase sticky notes
       const stickyNotes = prev.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
       // Erase images
@@ -483,7 +504,37 @@ export default function CanvasPage() {
     return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
   }
 
-  // Mouse events for drawing and erasing
+  // Add mouse move handler
+  const handleMouseMove = (e) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMousePos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  // Update pointer move handler
+  const handlePointerMove = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setMousePos({ x, y });
+    
+    if (!drawing) return;
+    if (tool === 'draw') {
+      setElements((prev) => {
+        const newLines = [...prev.lines];
+        newLines[newLines.length - 1].points.push({ x, y });
+        return { ...prev, lines: newLines };
+      });
+    } else if (tool === 'eraser') {
+      eraseAt(x, y);
+      setEraserPos({ x, y });
+    }
+  };
+
   const handlePointerDown = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -500,29 +551,14 @@ export default function CanvasPage() {
       eraseAt(x, y);
       setDrawing(true);
       setEraserPos({ x, y });
-    }
-  };
-
-  const handlePointerMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (!drawing) return;
-    if (tool === 'draw') {
-      setElements((prev) => {
-        const newLines = [...prev.lines];
-        newLines[newLines.length - 1].points.push({ x, y });
-        return { ...prev, lines: newLines };
-      });
-    } else if (tool === 'eraser') {
-      eraseAt(x, y);
-      setEraserPos({ x, y });
+      setEraserPreview(true);
     }
   };
 
   const handlePointerUp = () => {
     setDrawing(false);
     setEraserPos(null);
+    setEraserPreview(false);
   };
 
   // Add sticky note, image, or text box
@@ -633,17 +669,20 @@ export default function CanvasPage() {
   }
 
   return (
-    <div className="h-screen w-screen relative bg-gray-50 dark:bg-dark">
+    <div 
+      className="h-screen w-screen relative bg-gray-50 dark:bg-dark"
+      onMouseMove={handleMouseMove}
+    >
       <LogoStandalone />
       <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} />
-      <RightToolbar />
+      <RightToolbar tool={tool} eraserSize={eraserSize} setEraserSize={setEraserSize} />
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
         height={window.innerHeight}
         className="block absolute top-0 left-0 w-full h-full"
         style={{
-          cursor: tool === 'draw' ? 'crosshair' : tool === 'eraser' ? 'pointer' : 'default',
+          cursor: tool === 'draw' ? 'crosshair' : tool === 'eraser' ? 'none' : 'default',
           background: 'transparent',
         }}
         onPointerDown={handleCanvasPointerDown}
@@ -772,23 +811,38 @@ export default function CanvasPage() {
           )}
         </Draggable>
       ))}
-      {/* Eraser hover animation */}
-      {tool === 'eraser' && drawing && eraserPos && (
+      {/* Eraser cursor and preview */}
+      {tool === 'eraser' && (
         <div
           style={{
             position: 'fixed',
-            left: eraserPos.x + canvasRef.current?.getBoundingClientRect().left - ERASER_RADIUS,
-            top: eraserPos.y + canvasRef.current?.getBoundingClientRect().top - ERASER_RADIUS,
-            width: ERASER_RADIUS * 2,
-            height: ERASER_RADIUS * 2,
+            left: mousePos.x + canvasRef.current?.getBoundingClientRect().left - eraserSize / 2,
+            top: mousePos.y + canvasRef.current?.getBoundingClientRect().top - eraserSize / 2,
+            width: eraserSize,
+            height: eraserSize,
             pointerEvents: 'none',
             borderRadius: '50%',
-            border: '2px solid #f87171', // red-400
+            border: '2px solid #f87171',
             background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
             boxShadow: '0 0 8px 2px rgba(248,113,113,0.2)',
             zIndex: 1000,
+            transition: 'all 0.1s ease-out',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-        />
+        >
+          {/* Small crosshair in the center */}
+          <div
+            style={{
+              width: '2px',
+              height: '2px',
+              background: '#f87171',
+              borderRadius: '50%',
+              boxShadow: '0 0 2px 1px rgba(248,113,113,0.5)',
+            }}
+          />
+        </div>
       )}
       <BottomToolbar tool={tool} setTool={handleToolbarToolSelect} />
       <AddImageModal open={showAddImageModal} onClose={() => setShowAddImageModal(false)} onAdd={handleAddImage} position={pendingImagePos} isDark={isDark} />

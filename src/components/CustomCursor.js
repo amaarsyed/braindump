@@ -4,9 +4,10 @@ import { useCursorify } from '@cursorify/react';
 const CustomCursor = () => {
   const { mouseState } = useCursorify();
 
+  
   return (
     <div
-      style={{
+style={{
         width: '30px',
         height: '30px',
         borderRadius: '50%',
