@@ -124,13 +124,23 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
           <LuSettings2 size={22} color={iconColor} />
         </button>
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-44 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-[9999] text-sm bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm pointer-events-auto">
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition rounded"
-              onClick={handleDropdownToggleDark}
-            >
-              Toggle Dark/Light Mode
-            </button>
+          <div className="absolute right-0 mt-2 w-52 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-2 z-[9999] text-sm bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm pointer-events-auto">
+            <div className="flex items-center justify-between px-4 py-2 gap-3">
+              <div className="flex items-center gap-2">
+                <LuMoon size={18} className="text-zinc-500 dark:text-zinc-200" />
+                <span className="font-medium">Dark Mode</span>
+              </div>
+              <button
+                aria-label="Toggle dark mode"
+                onClick={handleDropdownToggleDark}
+                className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${isDark ? 'bg-teal-500' : 'bg-zinc-300'}`}
+                style={{ minWidth: 40 }}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${isDark ? 'translate-x-4' : ''}`}
+                />
+              </button>
+            </div>
           </div>
         )}
       </div>
