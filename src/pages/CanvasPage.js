@@ -656,7 +656,9 @@ export default function CanvasPage() {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     elements.lines.forEach((line) => {
+      ctx.save();
       ctx.strokeStyle = line.color;
+      ctx.globalAlpha = opacity;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       line.points.forEach((pt, i) => {
@@ -664,8 +666,9 @@ export default function CanvasPage() {
         else ctx.lineTo(pt.x, pt.y);
       });
       ctx.stroke();
+      ctx.restore();
     });
-  }, [elements.lines]);
+  }, [elements.lines, opacity]);
 
   // Replace setTool usage to intercept 'image' tool selection
   function handleToolbarToolSelect(selectedTool) {
