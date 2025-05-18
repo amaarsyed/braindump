@@ -621,11 +621,13 @@ export default function CanvasPage() {
   const handleMouseMove = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
       requestAnimationFrame(() => {
-        setMousePos({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top
-        });
+        setMousePos({ x, y });
+        if (tool === 'eraser') {
+          setEraserPos({ x, y });
+        }
       });
     }
   };
@@ -635,11 +637,14 @@ export default function CanvasPage() {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     requestAnimationFrame(() => {
       setMousePos({ x, y });
+      if (tool === 'eraser') {
+        setEraserPos({ x, y });
+      }
     });
-    
+
     if (!drawing) return;
     if (tool === 'draw') {
       setElements((prev) => {
@@ -660,7 +665,6 @@ export default function CanvasPage() {
       } else {
         eraseAt(x, y);
       }
-      setEraserPos({ x, y });
       setLastEraserPos({ x, y });
     }
   };
