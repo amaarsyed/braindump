@@ -93,13 +93,14 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
   }, []);
   const iconColor = isDark ? "#fff" : "#222";
   // Toggle dark mode
-  const toggleDark = () => {
+  const handleDropdownToggleDark = () => {
     if (isDark) {
       document.documentElement.classList.remove("dark");
     } else {
       document.documentElement.classList.add("dark");
     }
     setIsDark(!isDark);
+    setDropdownOpen(false);
   };
   // Share logic
   const url = `${window.location.origin}${window.location.pathname}#${boardId}`;
@@ -114,7 +115,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
       <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
       {/* Preferences with dropdown */}
-      <div className="relative">
+      <div className="relative z-[100]">
         <button
           title="Preferences"
           className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -123,10 +124,10 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
           <LuSettings2 size={22} color={iconColor} />
         </button>
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-50 text-sm">
+          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-[200] text-sm">
             <button
               className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition rounded"
-              // onClick={...} // Toggle logic in next step
+              onClick={handleDropdownToggleDark}
             >
               Toggle Dark/Light Mode
             </button>
@@ -146,9 +147,6 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
           <div className="absolute right-0 mt-2 px-2 py-1 bg-zinc-900 text-white text-xs rounded shadow">Link copied!</div>
         )}
       </div>
-      <button title={isDark ? "Switch to light mode" : "Switch to dark mode"} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={toggleDark}>
-        {isDark ? <LuSun size={22} color="#fff" /> : <LuMoon size={22} color="#222" />}
-      </button>
     </div>
   );
 }
