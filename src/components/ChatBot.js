@@ -8,11 +8,24 @@ export default function ChatBot() {
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
 
-  const sendMessage = (msg) => {
+  const sendMessage = async (msg) => {
     setMessages([...messages, { from: "user", text: msg }])
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { from: "bot", text: "Hmm... Let me think 🤔" }])
-    }, 800)
+    try {
+      const response = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "api-key": "your-secret-api-key" // Replace with your actual API key
+        },
+        body: JSON.stringify({ messages: [{ role: "user", content: msg }] }),
+      })
+      if (!response.ok) throw new Error("Failed to get response")
+      const data = await response.json()
+      setMessages((prev) => [...prev, { from: "bot", text: data.response }])
+    } catch (error) {
+      console.error("Error:", error)
+      setMessages((prev) => [...prev, { from: "bot", text: "Sorry, I encountered an error. Please try again." }])
+    }
   }
 
   useEffect(() => {
