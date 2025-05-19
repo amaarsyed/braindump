@@ -1,14 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from typing import List, Optional
+from typing import List
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+import requests
 
 app = FastAPI()
 
@@ -21,15 +16,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the model and tokenizer
-MODEL_NAME = "facebook/opt-350m"  # Using a smaller model for testing
-try:
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
-except Exception as e:
-    print(f"Error loading model: {e}")
-    tokenizer = None
-    model = None
+# API Key for authentication
+API_KEY = "your-secret-api-key"  # Replace with your actual API key
+
+# OpenRouter API Key
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "your-openrouter-api-key")  # Replace with your actual OpenRouter API key
 
 class Message(BaseModel):
     role: str
@@ -42,31 +33,31 @@ class ChatResponse(BaseModel):
     response: str
 
 def generate_response(messages: List[Message]) -> str:
-    if not model or not tokenizer:
-        raise HTTPException(status_code=500, detail="Model not loaded")
+    # Format the conversation history for OpenRouter
+    conversation = [{"role": msg.role, "content": msg.content} for msg in messages]
     
-    # Format the conversation history
-    conversation = ""
-    for msg in messages:
-        conversation += f"{msg.role}: {msg.content}\n"
-    
-    # Generate response
-    inputs = tokenizer(conversation, return_tensors="pt", max_length=512, truncation=True)
-    outputs = model.generate(
-        inputs["input_ids"],
-        max_length=200,
-        num_return_sequences=1,
-        temperature=0.7,
-        top_p=0.9,
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id
+    # Call OpenRouter API
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "gpt-3.5-turbo",  # or any other model you prefer
+            "messages": conversation,
+        },
     )
     
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return response
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to get response from OpenRouter")
+    
+    return response.json()["choices"][0]["message"]["content"]
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, api_key: str = Header(None)):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
     try:
         response = generate_response(request.messages)
         return ChatResponse(response=response)
@@ -75,7 +66,7 @@ async def chat(request: ChatRequest):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "model_loaded": model is not None}
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
