@@ -206,24 +206,55 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange }) {
+function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange, elements }) {
   const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
+  
+  // Determine if color palette should be enabled
+  const isColorEnabled = tool === 'draw' || selectedStickyId || selectedTextId;
+  
+  // Get the current color based on selection
+  const getCurrentColor = () => {
+    if (tool === 'draw') return color;
+    if (selectedStickyId) {
+      const note = elements.stickyNotes.find(n => n.id === selectedStickyId);
+      return note?.color || "#fff";
+    }
+    if (selectedTextId) {
+      const text = elements.textBoxes.find(t => t.id === selectedTextId);
+      return text?.color || "#222";
+    }
+    return color;
+  };
+
+  // Handle color change based on current selection
+  const handleColorChange = (newColor) => {
+    if (tool === 'draw') {
+      setColor(newColor);
+    } else if (selectedStickyId) {
+      onStickyColorChange(newColor);
+    } else if (selectedTextId) {
+      onTextColorChange(newColor);
+    }
+  };
+
   return (
     <div className="fixed top-20 right-6 z-40 flex flex-col items-center gap-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-5 min-w-[180px]">
-      {/* Color palette for sticky notes */}
+      {/* Unified color palette */}
       <div className="w-full">
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Sticky Color</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">
+          {tool === 'draw' ? 'Pen Color' : selectedStickyId ? 'Sticky Color' : selectedTextId ? 'Text Color' : 'Color'}
+        </div>
         <div className="flex flex-wrap gap-2 mb-2">
           {COLORS.map((c) => (
             <button
               key={c}
-              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${stickyFont && color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'} ${!selectedStickyId ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${isColorEnabled && getCurrentColor() === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'} ${!isColorEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{ background: c }}
-              onClick={() => selectedStickyId && onStickyColorChange(c)}
+              onClick={() => isColorEnabled && handleColorChange(c)}
               aria-label={`Select color ${c}`}
-              disabled={!selectedStickyId}
+              disabled={!isColorEnabled}
             >
-              {color === c && selectedStickyId && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
+              {isColorEnabled && getCurrentColor() === c && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
             </button>
           ))}
         </div>
@@ -240,32 +271,33 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
         </div>
       </div>
       {/* Font dropdown for sticky notes */}
-      <div className="w-full">
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Sticky Font</div>
-        <select
-          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
-          value={stickyFont || ''}
-          onChange={e => selectedStickyId && onStickyFontChange(e.target.value)}
-          disabled={!selectedStickyId}
-        >
-          <option value="" disabled>Select font</option>
-          {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-        </select>
-      </div>
-      {/* Text color dropdown for text boxes */}
-      <div className="w-full">
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Text Color</div>
-        <select
-          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
-          value={textFont || ''}
-          onChange={e => selectedTextId && onTextColorChange(e.target.value)}
-          disabled={!selectedTextId}
-        >
-          {COLORS.map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
+      {selectedStickyId && (
+        <div className="w-full">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Sticky Font</div>
+          <select
+            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
+            value={stickyFont || ''}
+            onChange={e => onStickyFontChange(e.target.value)}
+          >
+            <option value="" disabled>Select font</option>
+            {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </div>
+      )}
+      {/* Font dropdown for text boxes */}
+      {selectedTextId && (
+        <div className="w-full">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Text Font</div>
+          <select
+            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm disabled:opacity-50"
+            value={textFont || ''}
+            onChange={e => onTextFontChange(e.target.value)}
+          >
+            <option value="" disabled>Select font</option>
+            {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </div>
+      )}
       {/* Eraser size control - only show when eraser tool is selected */}
       {tool === 'eraser' && (
         <div className="w-full">
@@ -892,6 +924,7 @@ export default function CanvasPage() {
             ...prev,
             stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, color: newColor } : n)
           }));
+          setColor(newColor);
         }}
         onStickyFontChange={(newFont) => {
           if (!selectedStickyId) return;
@@ -909,6 +942,7 @@ export default function CanvasPage() {
             ...prev,
             textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, color: newColor } : t)
           }));
+          setColor(newColor);
         }}
         onTextFontChange={(newFont) => {
           if (!selectedTextId) return;
@@ -918,6 +952,7 @@ export default function CanvasPage() {
             textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, font: newFont } : t)
           }));
         }}
+        elements={elements}
       />
       <canvas
         ref={canvasRef}
