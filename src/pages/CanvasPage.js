@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain, LuShare2 } from "react-icons/lu";
-import { motion } from 'framer-motion';
 import io from "socket.io-client";
 
 const TOOL_SELECT = "select";
@@ -325,38 +324,45 @@ function isNearPoint(x, y, pt, threshold = 8) {
 
 function Draggable({ x, y, children, onDrag, style, ...props }) {
   const [dragging, setDragging] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const ref = useRef();
+  const [position, setPosition] = useState({ x, y });
 
   const handlePointerDown = (e) => {
-    setDragging(true);
-    setOffset({
-      x: e.clientX - x,
-      y: e.clientY - y,
-    });
     e.stopPropagation();
+    setDragging(true);
   };
+
   const handlePointerMove = (e) => {
-    if (!dragging) return;
-    onDrag({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+    if (dragging) {
+      const newX = e.clientX;
+      const newY = e.clientY;
+      setPosition({ x: newX, y: newY });
+      onDrag && onDrag({ x: newX, y: newY });
+    }
   };
+
   const handlePointerUp = () => setDragging(false);
 
   useEffect(() => {
     if (dragging) {
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-      return () => {
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     }
-  });
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [dragging]);
 
   return (
     <div
-      ref={ref}
-      style={{ position: "absolute", left: x, top: y, cursor: dragging ? "grabbing" : "grab", ...style }}
+      style={{
+        position: 'absolute',
+        left: position.x,
+        top: position.y,
+        cursor: dragging ? 'grabbing' : 'grab',
+        transition: dragging ? 'none' : 'all 0.15s ease-out',
+        ...style
+      }}
       onPointerDown={handlePointerDown}
       {...props}
     >
@@ -516,7 +522,7 @@ function StickyNote({
   }, [editingRef, isEditing]);
 
   return (
-    <motion.div
+    <div
       ref={noteRef}
       className={`absolute shadow-lg rounded-lg ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
       style={{
@@ -575,7 +581,7 @@ function StickyNote({
         className="absolute right-1.5 bottom-1.5 w-3 h-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded cursor-se-resize"
         style={{ zIndex: 20 }}
       />
-    </motion.div>
+    </div>
   );
 }
 

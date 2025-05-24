@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { LuSend, LuBrain } from 'react-icons/lu';
 
 function ChatPage() {
@@ -64,11 +63,13 @@ function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <motion.div
+          <div
             key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-300 ease-out`}
+            style={{
+              opacity: 1,
+              transform: 'translateY(0)'
+            }}
           >
             <div
               className={`max-w-[70%] rounded-lg px-4 py-2 ${
@@ -79,18 +80,17 @@ function ChatPage() {
             >
               {message.content}
             </div>
-          </motion.div>
+          </div>
         ))}
         {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
+          <div
+            className="flex justify-start transition-opacity duration-300"
+            style={{ opacity: isLoading ? 1 : 0 }}
           >
             <div className="bg-white dark:bg-zinc-800 rounded-lg px-4 py-2 text-gray-500">
               Thinking...
             </div>
-          </motion.div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
