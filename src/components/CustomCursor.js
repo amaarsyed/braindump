@@ -7,7 +7,7 @@ const CustomCursor = () => {
   
   return (
     <div
-style={{
+      style={{
         width: '30px',
         height: '30px',
         borderRadius: '50%',
@@ -15,9 +15,11 @@ style={{
         position: 'fixed',
         pointerEvents: 'none',
         zIndex: 9999,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
         transform: `translate(${mouseState.x - 15}px, ${mouseState.y - 15}px)`,
         mixBlendMode: 'difference',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
         ...(mouseState.isHovering && {
           transform: `translate(${mouseState.x - 15}px, ${mouseState.y - 15}px) scale(1.5)`,
           borderColor: 'rgba(255, 255, 255, 0.8)',
@@ -40,7 +42,9 @@ style={{
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
           ...(mouseState.isHovering && {
             transform: 'translate(-50%, -50%) scale(0.5)',
             backgroundColor: 'rgba(255, 255, 255, 0.8)',
