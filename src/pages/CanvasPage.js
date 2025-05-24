@@ -860,7 +860,7 @@ export default function CanvasPage() {
     if (socketRef.current) {
       socketRef.current.emit('board-update', { boardId, data: elements });
     }
-    // eslint-disable-next-line
+    
   }, [elements]);
 
   function applyStyleToSelection(styleType, value) {

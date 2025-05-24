@@ -6,7 +6,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env file (private, not exposed to frontend)
 load_dotenv()
 
 app = FastAPI()
@@ -20,9 +20,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get API keys from environment variables with fallback values
-API_KEY = os.getenv("API_KEY", "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")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+# Get API keys from environment variables (private, not VITE_*)
+API_KEY = os.getenv("API_KEY") or "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"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or "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"
 
 class Message(BaseModel):
     role: str
