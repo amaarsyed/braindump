@@ -1,69 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 const CustomCursor = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const [isClicking, setIsClicking] = useState(false);
+  const cursorRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isActive, setIsActive] = useState(false);
 
+  // Handle mouse movement - direct positioning, no delay
+  const handleMouseMove = useCallback((e) => {
+    if (cursorRef.current) {
+      // Direct transform without any interpolation for zero delay
+      cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+    }
+    
+    if (!isVisible) {
+      setIsVisible(true);
+    }
+  }, [isVisible]);
+
+  // Handle mouse enter/leave
+  const handleMouseEnter = useCallback(() => {
+    setIsVisible(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsVisible(false);
+  }, []);
+
+  // Handle mouse down/up for active state
+  const handleMouseDown = useCallback(() => {
+    setIsActive(true);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setIsActive(false);
+  }, []);
+
+  // Setup event listeners
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      requestAnimationFrame(() => {
-        setPosition({
-          x: e.clientX,
-          y: e.clientY
-        });
-      });
-    };
-
-    const handleMouseDown = () => setIsClicking(true);
-    const handleMouseUp = () => setIsClicking(false);
-    const handleMouseEnter = () => setIsHovering(true);
-    const handleMouseLeave = () => setIsHovering(false);
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mouseenter', handleMouseEnter);
-    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.addEventListener('mouseenter', handleMouseEnter, { passive: true });
+    document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+    document.addEventListener('mousedown', handleMouseDown, { passive: true });
+    document.addEventListener('mouseup', handleMouseUp, { passive: true });
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mouseenter', handleMouseEnter);
       document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseEnter, handleMouseLeave, handleMouseDown, handleMouseUp]);
+
+  // Hide default cursor
+  useEffect(() => {
+    document.body.style.cursor = 'none';
+    return () => {
+      document.body.style.cursor = 'auto';
     };
   }, []);
 
   return (
     <div
+      ref={cursorRef}
       style={{
-        width: 30,
-        height: 30,
-        borderRadius: '50%',
-        border: '2px solid rgba(0,0,0,0.8)',
         position: 'fixed',
+        top: 0,
+        left: 0,
+        width: isActive ? 24 : 30,
+        height: isActive ? 24 : 30,
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        border: `2px solid ${isActive ? 'rgba(59, 130, 246, 0.8)' : 'rgba(255, 255, 255, 0.8)'}`,
+        borderRadius: '50%',
+        mixBlendMode: 'difference',
         pointerEvents: 'none',
         zIndex: 9999,
-        mixBlendMode: 'difference',
-        transform: `translate(${position.x - 15}px, ${position.y - 15}px) scale(${isClicking ? 0.8 : isHovering ? 1.5 : 1})`,
-        transition: 'transform 0.15s ease-out',
+        willChange: 'transform',
+        transform: 'translate3d(0, 0, 0)',
+        transition: 'width 0.1s ease, height 0.1s ease, border-color 0.1s ease',
+        opacity: isVisible ? 1 : 0,
+        visibility: isVisible ? 'visible' : 'hidden'
       }}
-    >
-      <div
-        style={{
-          width: 4,
-          height: 4,
-          backgroundColor: isClicking || isHovering ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)',
-          borderRadius: '50%',
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          transition: 'all 0.15s ease-out',
-        }}
-      />
-    </div>
+    />
   );
 };
 
