@@ -2,10 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LuSend, LuBrain, LuX } from 'react-icons/lu';
 
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const SYSTEM_PROMPT = import.meta.env.VITE_CHATBOT_SYSTEM_PROMPT;
 
-console.log('API Key available:', !!OPENROUTER_API_KEY);
 console.log('System Prompt available:', !!SYSTEM_PROMPT);
 
 function ChatBot() {
@@ -33,16 +31,13 @@ function ChatBot() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Braindump Chat'
+          'api-key': 'your_frontend_api_key', // Replace with your actual frontend API key
         },
         body: JSON.stringify({
-          model: "mistralai/devstral-small:free",
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             ...messages,
@@ -53,20 +48,12 @@ function ChatBot() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error:', errorData);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${JSON.stringify(errorData)}`);
-      }
-      
-      const data = await response.json();
-      console.log('API Response:', data);
-      
-      if (!data.choices || !data.choices[0]?.message?.content) {
-        throw new Error('Invalid response format from API');
+        throw new Error(errorData.detail || 'API error');
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
     } catch (error) {
-      console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: `Sorry, I encountered an error: ${error.message}` 
