@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain, LuShare2 } from "react-icons/lu";
+import { LuUndo2, LuRedo2, LuSettings2, LuDownload, LuStickyNote, LuImage, LuSquare, LuCircle, LuTriangle, LuArrowUpRight, LuEraser, LuHand, LuMousePointer2, LuPencil, LuType, LuShapes, LuPalette, LuGripHorizontal, LuChevronDown, LuSun, LuMoon, LuBrain, LuShare2, LuFileText, LuImage as LuImageIcon } from "react-icons/lu";
 import io from "socket.io-client";
 
 const TOOL_SELECT = "select";
@@ -85,11 +85,48 @@ function DarkModeToggleTop() {
   );
 }
 
-function TopControlsBox({ onUndo, onRedo, boardId }) {
+// Download Modal Component
+function DownloadModal({ open, onClose, onDownload, isDark }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/60">
+      <div className={`bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-[370px] max-w-full relative border border-gray-200 dark:border-zinc-700`}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-2xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">&times;</button>
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Download Options</h2>
+        <div className="space-y-4">
+          <button
+            onClick={() => onDownload('pdf')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <LuFileText size={24} className="text-blue-500" />
+            <div className="text-left">
+              <div className="font-medium text-gray-900 dark:text-gray-100">Download as PDF</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">High quality vector format</div>
+            </div>
+          </button>
+          <button
+            onClick={() => onDownload('jpg')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <LuImageIcon size={24} className="text-green-500" />
+            <div className="text-left">
+              <div className="font-medium text-gray-900 dark:text-gray-100">Download as JPG</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Image format</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopControlsBox({ onUndo, onRedo, boardId, onDownload }) {
   // Detect dark mode for icon color
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [copied, setCopied] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
@@ -119,7 +156,7 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
     <div className="fixed top-4 right-6 z-50 flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-3 py-2">
       <button title="Undo (Ctrl+Z)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onUndo}><LuUndo2 size={22} color={iconColor} /></button>
       <button title="Redo (Ctrl+Y)" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={onRedo}><LuRedo2 size={22} color={iconColor} /></button>
-      <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800"><LuDownload size={22} color={iconColor} /></button>
+      <button title="Export" className="p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800" onClick={() => setShowDownloadModal(true)}><LuDownload size={22} color={iconColor} /></button>
       {/* Preferences with dropdown */}
       <div className="relative z-[9999]">
         <button
@@ -163,6 +200,12 @@ function TopControlsBox({ onUndo, onRedo, boardId }) {
           <div className="absolute right-0 mt-2 px-2 py-1 bg-zinc-900 text-white text-xs rounded shadow">Link copied!</div>
         )}
       </div>
+      <DownloadModal 
+        open={showDownloadModal} 
+        onClose={() => setShowDownloadModal(false)} 
+        onDownload={onDownload}
+        isDark={isDark}
+      />
     </div>
   );
 }
@@ -680,6 +723,7 @@ export default function CanvasPage() {
   const editingTextRef = useRef(null);
   const [editingTextSelection, setEditingTextSelection] = useState(null);
   const [lastEraserPos, setLastEraserPos] = useState(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   // Save state to localStorage whenever elements change
   useEffect(() => {
@@ -965,13 +1009,120 @@ export default function CanvasPage() {
     }
   }
 
+  // Download handlers
+  const handleDownload = async (format) => {
+    try {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      // Create a temporary canvas to combine all elements
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Draw background
+      tempCtx.fillStyle = isDark ? '#18181b' : '#fafafa';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw all elements
+      // Draw lines
+      elements.lines.forEach((line) => {
+        tempCtx.save();
+        tempCtx.strokeStyle = line.color;
+        tempCtx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
+        tempCtx.lineWidth = 2.5;
+        tempCtx.beginPath();
+        line.points.forEach((pt, i) => {
+          if (i === 0) tempCtx.moveTo(pt.x, pt.y);
+          else tempCtx.lineTo(pt.x, pt.y);
+        });
+        tempCtx.stroke();
+        tempCtx.restore();
+      });
+      
+      // Draw sticky notes
+      elements.stickyNotes.forEach((note) => {
+        tempCtx.save();
+        tempCtx.fillStyle = note.color || '#fff';
+        tempCtx.fillRect(note.x, note.y, 120, 80);
+        tempCtx.fillStyle = '#000';
+        tempCtx.font = '14px sans-serif';
+        tempCtx.fillText(note.text, note.x + 10, note.y + 20);
+        tempCtx.restore();
+      });
+      
+      // Draw text boxes
+      elements.textBoxes.forEach((text) => {
+        tempCtx.save();
+        tempCtx.fillStyle = text.color || '#000';
+        tempCtx.font = '14px sans-serif';
+        tempCtx.fillText(text.text, text.x, text.y);
+        tempCtx.restore();
+      });
+      
+      // Draw images
+      const imagePromises = elements.images.map((img) => {
+        return new Promise((resolve) => {
+          const image = new Image();
+          image.crossOrigin = 'anonymous';
+          image.onload = () => {
+            tempCtx.drawImage(image, img.x, img.y, img.width, img.height);
+            resolve();
+          };
+          image.onerror = () => resolve();
+          image.src = img.src;
+        });
+      });
+      
+      await Promise.all(imagePromises);
+      
+      if (format === 'pdf') {
+        // Convert to PDF using jsPDF
+        const { jsPDF } = await import('jspdf');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: [tempCanvas.width, tempCanvas.height]
+        });
+        
+        pdf.addImage(
+          tempCanvas.toDataURL('image/jpeg', 1.0),
+          'JPEG',
+          0,
+          0,
+          tempCanvas.width,
+          tempCanvas.height
+        );
+        
+        pdf.save('canvas-export.pdf');
+      } else {
+        // Download as JPG
+        const link = document.createElement('a');
+        link.download = 'canvas-export.jpg';
+        link.href = tempCanvas.toDataURL('image/jpeg', 0.8);
+        link.click();
+      }
+      
+      setShowDownloadModal(false);
+    } catch (error) {
+      console.error('Error downloading:', error);
+      alert('Error downloading the canvas. Please try again.');
+    }
+  };
+
   return (
     <div 
       className="h-screen w-screen relative bg-gray-50 dark:bg-dark"
       onMouseMove={handleMouseMove}
     >
       <LogoStandalone />
-      <TopControlsBox onUndo={handleUndo} onRedo={handleRedo} boardId={boardId} />
+      <TopControlsBox 
+        onUndo={handleUndo} 
+        onRedo={handleRedo} 
+        boardId={boardId} 
+        onDownload={handleDownload}
+      />
       <RightToolbar
         tool={tool}
         eraserSize={eraserSize}
