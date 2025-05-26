@@ -11,7 +11,7 @@
  * - Zoom and pan interactions
  * - Responsive canvas container
  * - Transform application
- * - Eraser tool with translucent preview (tldraw style)
+ * - Eraser tool with translucent preview
  */
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -79,7 +79,7 @@ const Canvas = () => {
         }}
       >
         <div className="canvas-content">
-          {/* Add your drawing elements here */}
+          {/* add elements here */}
         </div>
         {/* Eraser preview */}
         {currentTool === 'eraser' && eraserPos && (
