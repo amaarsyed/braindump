@@ -6,7 +6,9 @@ const SYSTEM_PROMPT = import.meta.env.VITE_CHATBOT_SYSTEM_PROMPT;
 console.log('System Prompt available:', !!SYSTEM_PROMPT);
 
 function ChatBot() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: 'Hello! I\'m your AI assistant. How can I help you today?' }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
@@ -65,7 +67,7 @@ function ChatBot() {
   return (
     <>
       <div
-        className="fixed top-20 right-6 w-96 h-[calc(100vh-8rem)] bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-out"
+        className="fixed top-20 right-6 w-96 h-[calc(100vh-8rem)] bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-out z-50"
         style={{
           opacity: isOpen ? 1 : 0,
           transform: isOpen ? 'translateX(0)' : 'translateX(120%)',
@@ -142,7 +144,7 @@ function ChatBot() {
 
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-20 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-600 transition-all duration-300 hover:scale-110 active:scale-90"
+        className="fixed top-20 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-600 transition-all duration-300 hover:scale-110 active:scale-90 z-50"
         style={{
           opacity: isOpen ? 0 : 1,
           visibility: isOpen ? 'hidden' : 'visible'
