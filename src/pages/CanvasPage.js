@@ -588,16 +588,76 @@ function StickyNote({
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Change if deploying
 
 export default function CanvasPage() {
-  // Unified state for all elements
-  const [elements, setElements] = useState({
-    lines: [],
-    stickyNotes: [],
-    images: [],
-    textBoxes: [],
+  // Initialize boardId first
+  const [boardId] = useState(() => {
+    // Use URL param or random for now
+    const urlId = window.location.hash.replace('#', '');
+    if (urlId) return urlId;
+    const randomId = Math.random().toString(36).slice(2, 10);
+    window.location.hash = randomId;
+    return randomId;
   });
+
+  // Unified state for all elements
+  const [elements, setElements] = useState(() => {
+    try {
+      // Load saved state from localStorage on initial render
+      const savedState = localStorage.getItem(`canvas-state-${boardId}`);
+      return savedState ? JSON.parse(savedState) : {
+        lines: [],
+        stickyNotes: [],
+        images: [],
+        textBoxes: [],
+      };
+    } catch (error) {
+      console.error('Error loading saved state:', error);
+      return {
+        lines: [],
+        stickyNotes: [],
+        images: [],
+        textBoxes: [],
+      };
+    }
+  });
+
   const [drawing, setDrawing] = useState(false);
-  const [undoStack, setUndoStack] = useState([]);
-  const [redoStack, setRedoStack] = useState([]);
+  // Initialize undo/redo stacks from localStorage
+  const [undoStack, setUndoStack] = useState(() => {
+    try {
+      const savedUndo = localStorage.getItem(`undo-stack-${boardId}`);
+      return savedUndo ? JSON.parse(savedUndo) : [];
+    } catch (error) {
+      console.error('Error loading undo stack:', error);
+      return [];
+    }
+  });
+  const [redoStack, setRedoStack] = useState(() => {
+    try {
+      const savedRedo = localStorage.getItem(`redo-stack-${boardId}`);
+      return savedRedo ? JSON.parse(savedRedo) : [];
+    } catch (error) {
+      console.error('Error loading redo stack:', error);
+      return [];
+    }
+  });
+
+  // Save undo/redo stacks to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(`undo-stack-${boardId}`, JSON.stringify(undoStack));
+    } catch (error) {
+      console.error('Error saving undo stack:', error);
+    }
+  }, [undoStack, boardId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`redo-stack-${boardId}`, JSON.stringify(redoStack));
+    } catch (error) {
+      console.error('Error saving redo stack:', error);
+    }
+  }, [redoStack, boardId]);
+
   const [eraserSize, setEraserSize] = useState(16);
   const [eraserPos, setEraserPos] = useState(null);
   const [eraserPreview, setEraserPreview] = useState(false);
@@ -613,14 +673,6 @@ export default function CanvasPage() {
   const [showAddImageModal, setShowAddImageModal] = useState(false);
   const [pendingImagePos, setPendingImagePos] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [boardId] = useState(() => {
-    // Use URL param or random for now
-    const urlId = window.location.hash.replace('#', '');
-    if (urlId) return urlId;
-    const randomId = Math.random().toString(36).slice(2, 10);
-    window.location.hash = randomId;
-    return randomId;
-  });
   const socketRef = useRef(null);
   const [stickyFont, setStickyFont] = useState('Inter, sans-serif');
   const editingStickyRef = useRef(null);
@@ -628,6 +680,15 @@ export default function CanvasPage() {
   const editingTextRef = useRef(null);
   const [editingTextSelection, setEditingTextSelection] = useState(null);
   const [lastEraserPos, setLastEraserPos] = useState(null);
+
+  // Save state to localStorage whenever elements change
+  useEffect(() => {
+    try {
+      localStorage.setItem(`canvas-state-${boardId}`, JSON.stringify(elements));
+    } catch (error) {
+      console.error('Error saving state:', error);
+    }
+  }, [elements, boardId]);
 
   // Helper: push to undo stack
   const pushToUndo = (current) => {
