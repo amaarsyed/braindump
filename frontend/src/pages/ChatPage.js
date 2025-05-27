@@ -88,7 +88,11 @@ function ChatPage() {
             style={{ opacity: isLoading ? 1 : 0 }}
           >
             <div className="bg-white dark:bg-zinc-800 rounded-lg px-2.5 py-1.5 text-gray-500 text-sm">
+<<<<<<< HEAD:frontend/src/pages/ChatPage.js
               Brainstorming...
+=======
+              Thinking...
+>>>>>>> 5df0a70bb99ecd3955394d58a59e1f60a89293a4:src/pages/ChatPage.js
             </div>
           </div>
         )}

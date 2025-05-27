@@ -26,9 +26,14 @@ yarn-error.log*
 *.swp
 *.swo
 
+<<<<<<< HEAD
 #api backend/frontend
 backend/.env
 frontend/.env
 
 node_modules/
 .cache/
+=======
+#api 
+.env
+>>>>>>> 5df0a70bb99ecd3955394d58a59e1f60a89293a4
