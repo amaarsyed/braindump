@@ -26,5 +26,6 @@ yarn-error.log*
 *.swp
 *.swo
 
-#api 
-.env
+#api backend/frontend
+backend/.env
+frontend/.env
