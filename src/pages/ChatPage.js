@@ -105,6 +105,11 @@ function ChatPage() {
             placeholder="Type a message..."
             className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
             disabled={isLoading}
+            autoComplete="off"
+            name="chat-message"
+            id="chat-message"
+            autoCorrect="off"
+            autoCapitalize="off"
           />
           <button
             type="submit"
