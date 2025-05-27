@@ -29,3 +29,6 @@ yarn-error.log*
 #api backend/frontend
 backend/.env
 frontend/.env
+
+node_modules/
+.cache/
