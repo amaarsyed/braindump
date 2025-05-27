@@ -2,14 +2,10 @@
   "name": "braindump-root",
   "version": "1.0.0",
   "private": true,
-<<<<<<< HEAD
   "scripts": {
     "start": "concurrently \"cd frontend && npm start\" \"cd backend && python main.py\"",
     "install-all": "npm install && cd frontend && npm install --legacy-peer-deps && cd ../backend && pip install -r requirements.txt"
   },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-=======
   "dependencies": {
     "@cursorify/react": "^0.0.43",
     "@radix-ui/react-dialog": "^1.1.13",
@@ -36,33 +32,8 @@
     "tunnel-rat": "^0.1.2",
     "web-vitals": "^2.1.4"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "@types/cors": "^2.8.18",
     "@types/express": "^4.17.22",
     "@types/node": "^22.15.18",
@@ -74,6 +45,5 @@
     "postcss": "^8.4.21",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.8.3"
->>>>>>> 5df0a70bb99ecd3955394d58a59e1f60a89293a4
   }
 } 
