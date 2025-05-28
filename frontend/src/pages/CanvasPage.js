@@ -248,7 +248,7 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange, elements }) {
+function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, penThickness, setPenThickness, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange, elements }) {
   const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
   
   // Determine if color palette should be enabled
@@ -301,6 +301,26 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
           ))}
         </div>
       </div>
+      {/* Pen thickness slider - only show when draw tool is selected */}
+      {tool === 'draw' && (
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Pen Thickness</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{penThickness}px</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LuGripHorizontal />
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={penThickness}
+              onChange={e => setPenThickness(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
       {/* Opacity slider */}
       <div className="w-full">
         <div className="flex items-center justify-between mb-1">
@@ -763,6 +783,7 @@ export default function CanvasPage() {
   const [tool, setTool] = useState('draw');
   const [color, setColor] = useState("#222");
   const [opacity, setOpacity] = useState(1);
+  const [penThickness, setPenThickness] = useState(2);
   const canvasRef = useRef(null);
   const isDark = useIsDarkMode();
   const [showAddImageModal, setShowAddImageModal] = useState(false);
@@ -860,9 +881,11 @@ export default function CanvasPage() {
           setElements((prev) => {
             if (!prev.lines.length) return prev;
             const lines = [...prev.lines];
+            const currentLine = lines[lines.length - 1];
             lines[lines.length - 1] = {
-              ...lines[lines.length - 1],
-              points: [...lines[lines.length - 1].points, { x, y }]
+              ...currentLine,
+              points: [...currentLine.points, { x, y }],
+              thickness: penThickness // Ensure thickness is maintained
             };
             return { ...prev, lines };
           });
@@ -905,21 +928,27 @@ export default function CanvasPage() {
       tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
       // Draw all elements
       // Draw lines
-      safeElements.lines.forEach((line) => {
+      elements.lines.forEach((line) => {
         tempCtx.save();
         tempCtx.strokeStyle = line.color;
         tempCtx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
-        tempCtx.lineWidth = 2.5;
+        tempCtx.lineWidth = line.thickness || 2.5;
         tempCtx.beginPath();
-        line.points.forEach((pt, i) => {
-          if (i === 0) tempCtx.moveTo(pt.x, pt.y);
-          else tempCtx.lineTo(pt.x, pt.y);
-        });
+        for (let i = 0; i < line.points.length - 1; i++) {
+          const p0 = line.points[i];
+          const p1 = line.points[i + 1];
+          const midX = (p0.x + p1.x) / 2;
+          const midY = (p0.y + p1.y) / 2;
+          if (i === 0) {
+            tempCtx.moveTo(p0.x, p0.y);
+          }
+          tempCtx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+        }
         tempCtx.stroke();
         tempCtx.restore();
       });
       // Draw sticky notes
-      safeElements.stickyNotes.forEach((note) => {
+      elements.stickyNotes.forEach((note) => {
         tempCtx.save();
         tempCtx.fillStyle = note.color || '#fff';
         tempCtx.fillRect(note.x, note.y, 120, 80);
@@ -929,7 +958,7 @@ export default function CanvasPage() {
         tempCtx.restore();
       });
       // Draw text boxes
-      safeElements.textBoxes.forEach((text) => {
+      elements.textBoxes.forEach((text) => {
         tempCtx.save();
         tempCtx.fillStyle = text.color || '#000';
         tempCtx.font = '14px sans-serif';
@@ -937,7 +966,7 @@ export default function CanvasPage() {
         tempCtx.restore();
       });
       // Draw images
-      const imagePromises = safeElements.images.map((img) => {
+      const imagePromises = elements.images.map((img) => {
         return new Promise((resolve) => {
           const image = new Image();
           image.crossOrigin = 'anonymous';
@@ -980,33 +1009,64 @@ export default function CanvasPage() {
   };
 
   const handleCanvasPointerDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    if (tool === 'sticky') {
+
+    if (tool === 'draw') {
+      setDrawing(true);
+      pushToUndo(elements);
+      setElements(prev => ({
+        ...prev,
+        lines: [...prev.lines, {
+          points: [{ x, y }],
+          color,
+          opacity,
+          thickness: penThickness
+        }]
+      }));
+    } else if (tool === 'sticky') {
       pushToUndo(elements);
       const newId = Date.now();
-      setElements((prev) => ({
+      setElements(prev => ({
         ...prev,
-        stickyNotes: [
-          ...prev.stickyNotes,
-          { id: newId, x, y, text: "", font: 'Inter, sans-serif', color: '#fff', width: 120, height: 80 }
-        ]
+        stickyNotes: [...prev.stickyNotes, {
+          id: newId,
+          x,
+          y,
+          width: 120,
+          height: 80,
+          color: "#fff",
+          text: "",
+          font: stickyFont,
+          rotation: 0
+        }]
       }));
-      setSelectedStickyId(newId);
       setEditingStickyId(newId);
-      // Focus will be handled in StickyNote useEffect
+      setSelectedStickyId(newId);
     } else if (tool === 'text') {
       pushToUndo(elements);
-      setElements((prev) => ({
+      const newId = Date.now();
+      setElements(prev => ({
         ...prev,
-        textBoxes: [
-          ...prev.textBoxes,
-          { id: Date.now(), x, y, text: "Text" }
-        ]
+        textBoxes: [...prev.textBoxes, {
+          id: newId,
+          x,
+          y,
+          width: 120,
+          height: 40,
+          color: "#222",
+          text: "",
+          font: "Inter, sans-serif"
+        }]
       }));
-    } else {
-      handlePointerDown(e);
+      setEditingTextId(newId);
+      setSelectedTextId(newId);
+    } else if (tool === 'image') {
+      setPendingImagePos({ x, y });
+      setShowAddImageModal(true);
     }
   };
 
@@ -1051,7 +1111,7 @@ export default function CanvasPage() {
       pushToUndo(elements);
       setElements((prev) => ({
         ...prev,
-        lines: [...prev.lines, { points: [{ x, y }], color, opacity }],
+        lines: [...prev.lines, { points: [{ x, y }], color, opacity, thickness: penThickness }],
       }));
       setDrawing(true);
     } else if (tool === 'eraser') {
@@ -1089,12 +1149,18 @@ export default function CanvasPage() {
       ctx.save();
       ctx.strokeStyle = line.color;
       ctx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = line.thickness || 2.5;
       ctx.beginPath();
-      line.points.forEach((pt, i) => {
-        if (i === 0) ctx.moveTo(pt.x, pt.y);
-        else ctx.lineTo(pt.x, pt.y);
-      });
+      for (let i = 0; i < line.points.length - 1; i++) {
+        const p0 = line.points[i];
+        const p1 = line.points[i + 1];
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+        if (i === 0) {
+          ctx.moveTo(p0.x, p0.y);
+        }
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+      }
       ctx.stroke();
       ctx.restore();
     });
@@ -1150,6 +1216,8 @@ export default function CanvasPage() {
         setColor={setColor}
         opacity={opacity}
         setOpacity={setOpacity}
+        penThickness={penThickness}
+        setPenThickness={setPenThickness}
         selectedStickyId={selectedStickyId}
         selectedTextId={selectedTextId}
         stickyFont={selectedStickyId ? safeElements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
