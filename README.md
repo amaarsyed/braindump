@@ -1,6 +1,5 @@
 ﻿<div align="center">
-  <img src="![braindump](https://github.com/user-attachments/assets/fb749f43-5024-4073-82d0-7dcf9bd0a792)
-" alt="Braindump Logo" width="120" />
+  <img src="![Braindump Logo](braindump.png)" alt="Braindump Logo" width="120" />
 </div>
 
 # Braindump
