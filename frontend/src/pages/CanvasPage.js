@@ -361,8 +361,8 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
   );
 }
 
-function isNearPoint(x, y, pt, threshold = 8) {
-  return Math.hypot(x - pt.x, y - pt.y) < threshold;
+function isInBox(x, y, bx, by, bw, bh) {
+  return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
 }
 
 function Draggable({ x, y, children, onDrag, style, ...props }) {
@@ -482,71 +482,112 @@ function AddImageModal({ open, onClose, onAdd, position, isDark }) {
 }
 
 function StickyNote({
-  id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, onRotate, editingRef, onSelectionChange
+  id, x, y, width, height, rotation, color, font, text, isEditing, isSelected, onClick, onChange, onEdit, onDelete, onDrag, onResize, editingRef, onSelectionChange
 }) {
   const [dragging, setDragging] = useState(false);
-  const [resizing, setResizing] = useState(false);
-  const [rotating, setRotating] = useState(false);
-  const [local, setLocal] = useState({ x, y, width, height, rotation });
+  const [resizing, setResizing] = useState(null); // null or one of 'top-left', 'top-right', 'bottom-left', 'bottom-right'
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, noteX: 0, noteY: 0 });
   const noteRef = useRef();
   const contentRef = useRef();
-
-  // Track selection for rich text
   const [selection, setSelection] = useState(null);
 
   // Drag logic
-  function handleDrag(e, info) {
-    setLocal(l => ({ ...l, x: info.point.x, y: info.point.y }));
-    if (onDrag) onDrag({ x: info.point.x, y: info.point.y });
+  function handleToolbarPointerDown(e) {
+    if (isEditing) return;
+    setDragging(true);
+    const rect = noteRef.current.getBoundingClientRect();
+    setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    window.addEventListener('pointermove', handleToolbarPointerMove);
+    window.addEventListener('pointerup', handleToolbarPointerUp);
+    noteRef.current.setPointerCapture(e.pointerId);
+  }
+  function handleToolbarPointerMove(e) {
+    if (!dragging) return;
+    const newX = e.clientX - dragOffset.x;
+    const newY = e.clientY - dragOffset.y;
+    if (noteRef.current) {
+      noteRef.current.style.left = newX + 'px';
+      noteRef.current.style.top = newY + 'px';
+    }
+  }
+  function handleToolbarPointerUp(e) {
+    if (!dragging) return;
+    setDragging(false);
+    window.removeEventListener('pointermove', handleToolbarPointerMove);
+    window.removeEventListener('pointerup', handleToolbarPointerUp);
+    noteRef.current.releasePointerCapture(e.pointerId);
+    // Commit final position to state
+    const rect = noteRef.current.getBoundingClientRect();
+    if (onDrag) onDrag({ x: rect.left, y: rect.top });
   }
 
   // Resize logic
-  function handleResize(e) {
-    e.stopPropagation();
-    setResizing(true);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startW = local.width;
-    const startH = local.height;
-    function onMove(ev) {
-      const newW = Math.max(80, startW + (ev.clientX - startX));
-      const newH = Math.max(40, startH + (ev.clientY - startY));
-      setLocal(l => ({ ...l, width: newW, height: newH }));
-      if (onResize) onResize({ width: newW, height: newH });
-    }
-    function onUp() {
-      setResizing(false);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    }
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+  function handleResizePointerDown(corner) {
+    return (e) => {
+      e.stopPropagation();
+      setResizing(corner);
+      setResizeStart({ x: e.clientX, y: e.clientY, width, height, noteX: x, noteY: y });
+      window.addEventListener('pointermove', handleResizePointerMove);
+      window.addEventListener('pointerup', handleResizePointerUp);
+      noteRef.current.setPointerCapture(e.pointerId);
+    };
   }
-
-  // Rotate logic
-  function handleRotate(e) {
-    e.stopPropagation();
-    setRotating(true);
+  function handleResizePointerMove(e) {
+    if (!resizing) return;
+    const { x: startX, y: startY, width: startW, height: startH, noteX: startNoteX, noteY: startNoteY } = resizeStart;
+    let newX = x, newY = y, newW = width, newH = height;
+    const minW = 80, minH = 40;
+    if (resizing === 'bottom-right') {
+      newW = Math.max(minW, startW + (e.clientX - startX));
+      newH = Math.max(minH, startH + (e.clientY - startY));
+    } else if (resizing === 'bottom-left') {
+      newW = Math.max(minW, startW - (e.clientX - startX));
+      newH = Math.max(minH, startH + (e.clientY - startY));
+      newX = startNoteX + (e.clientX - startX);
+    } else if (resizing === 'top-right') {
+      newW = Math.max(minW, startW + (e.clientX - startX));
+      newH = Math.max(minH, startH - (e.clientY - startY));
+      newY = startNoteY + (e.clientY - startY);
+    } else if (resizing === 'top-left') {
+      newW = Math.max(minW, startW - (e.clientX - startX));
+      newH = Math.max(minH, startH - (e.clientY - startY));
+      newX = startNoteX + (e.clientX - startX);
+      newY = startNoteY + (e.clientY - startY);
+    }
+    if (noteRef.current) {
+      noteRef.current.style.left = newX + 'px';
+      noteRef.current.style.top = newY + 'px';
+      noteRef.current.style.width = newW + 'px';
+      noteRef.current.style.height = newH + 'px';
+    }
+  }
+  function handleResizePointerUp(e) {
+    if (!resizing) return;
+    setResizing(null);
+    window.removeEventListener('pointermove', handleResizePointerMove);
+    window.removeEventListener('pointerup', handleResizePointerUp);
+    noteRef.current.releasePointerCapture(e.pointerId);
+    // Commit final size/position to state
     const rect = noteRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    function onMove(ev) {
-      const dx = ev.clientX - centerX;
-      const dy = ev.clientY - centerY;
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      setLocal(l => ({ ...l, rotation: angle }));
-      if (onRotate) onRotate({ rotation: angle });
-    }
-    function onUp() {
-      setRotating(false);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    }
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    if (onResize) onResize({
+      x: rect.left,
+      y: rect.top,
+      width: noteRef.current.offsetWidth,
+      height: noteRef.current.offsetHeight
+    });
   }
 
-  // Handle selection change
+  // Keep the note in sync with state when not dragging/resizing
+  useEffect(() => {
+    if (!dragging && !resizing && noteRef.current) {
+      noteRef.current.style.left = x + 'px';
+      noteRef.current.style.top = y + 'px';
+      noteRef.current.style.width = width + 'px';
+      noteRef.current.style.height = height + 'px';
+    }
+  }, [x, y, width, height, dragging, resizing]);
+
   function handleSelection() {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && contentRef.current && contentRef.current.contains(sel.anchorNode)) {
@@ -558,42 +599,45 @@ function StickyNote({
     }
   }
 
-  useEffect(() => {
-    if (editingRef && isEditing) {
-      editingRef.current = contentRef.current;
+  // In StickyNote, add keydown handler to contentEditable for Ctrl+A
+  function handleContentKeyDown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      // Prevent selecting the whole sticky note when editing text
+      e.stopPropagation();
+      // Let browser select all text in the contentEditable
     }
-  }, [editingRef, isEditing]);
+  }
 
   return (
     <div
       ref={noteRef}
       className={`absolute shadow-lg rounded-lg ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
       style={{
-        left: local.x,
-        top: local.y,
-        width: local.width,
-        height: local.height,
+        left: x,
+        top: y,
+        width,
+        height,
         background: color,
         fontFamily: font,
-        transform: `rotate(${local.rotation || 0}deg)`,
-        transition: dragging || resizing || rotating ? 'none' : 'box-shadow 0.2s, transform 0.2s',
-        zIndex: dragging ? 100 : 10,
-        boxShadow: dragging ? '0 8px 32px 0 rgba(0,0,0,0.18)' : '0 2px 8px 0 rgba(0,0,0,0.10)',
+        transform: `rotate(${rotation || 0}deg)`,
+        transition: dragging || resizing ? 'none' : 'box-shadow 0.2s, transform 0.2s',
+        zIndex: dragging || resizing ? 100 : 10,
+        boxShadow: dragging || resizing ? '0 8px 32px 0 rgba(0,0,0,0.18)' : '0 2px 8px 0 rgba(0,0,0,0.10)',
         userSelect: isEditing ? 'text' : 'none',
+        cursor: isEditing ? 'text' : dragging ? 'grabbing' : resizing ? 'nwse-resize' : 'grab',
       }}
-      drag
-      dragMomentum={false}
-      dragElastic={0.18}
-      onDragStart={() => setDragging(true)}
-      onDragEnd={(e, info) => { setDragging(false); if (onDrag) onDrag({ x: info.point.x, y: info.point.y }); }}
-      onDrag={handleDrag}
       onClick={onClick}
     >
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1 bg-white/60 dark:bg-zinc-900/60 rounded-t-lg" style={{ cursor: 'move', borderBottom: '1px solid #eee' }}>
+      <div
+        className="flex items-center gap-1 px-2 py-1 bg-white/60 dark:bg-zinc-900/60 rounded-t-lg"
+        style={{ cursor: 'move', borderBottom: '1px solid #eee' }}
+        onPointerDown={handleToolbarPointerDown}
+      >
         <button onClick={onEdit} className="ml-auto text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800">✏️</button>
-        <button onClick={onDelete} className="text-xs px-1 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900">🗑️</button>
-        <button onPointerDown={handleRotate} className="text-xs px-1 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 cursor-alias">⟳</button>
+        {isSelected && !isEditing && (
+          <button onClick={e => { e.stopPropagation(); onDelete(); }} type="button" className="text-xs px-1 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900">🗑️</button>
+        )}
       </div>
       {/* Content */}
       {isEditing ? (
@@ -608,8 +652,13 @@ function StickyNote({
           onSelect={handleSelection}
           onKeyUp={handleSelection}
           onMouseUp={handleSelection}
-          dangerouslySetInnerHTML={{ __html: text }}
-        />
+          onKeyDown={handleContentKeyDown}
+          autoFocus
+        >
+          {text === "" && document.activeElement === contentRef.current && contentRef.current?.innerText === "" && (
+            <span style={{ opacity: 0.5, pointerEvents: 'none', position: 'absolute' }} className="animate-pulse">Type here...</span>
+          )}
+        </div>
       ) : (
         <div
           className="w-full h-full p-2 text-base rounded-b-lg cursor-pointer"
@@ -618,12 +667,13 @@ function StickyNote({
           dangerouslySetInnerHTML={{ __html: text }}
         />
       )}
-      {/* Resize handle */}
-      <div
-        onPointerDown={handleResize}
-        className="absolute right-1.5 bottom-1.5 w-3 h-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded cursor-se-resize"
-        style={{ zIndex: 20 }}
-      />
+      {/* Four-corner resize handles, only if selected */}
+      {isSelected && <>
+        <div className="resizer top-left" onPointerDown={handleResizePointerDown('top-left')} style={{ position: 'absolute', left: -8, top: -8, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '2px solid #4286f4', cursor: 'nwse-resize', zIndex: 20 }} />
+        <div className="resizer top-right" onPointerDown={handleResizePointerDown('top-right')} style={{ position: 'absolute', right: -8, top: -8, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '2px solid #4286f4', cursor: 'nesw-resize', zIndex: 20 }} />
+        <div className="resizer bottom-left" onPointerDown={handleResizePointerDown('bottom-left')} style={{ position: 'absolute', left: -8, bottom: -8, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '2px solid #4286f4', cursor: 'nesw-resize', zIndex: 20 }} />
+        <div className="resizer bottom-right" onPointerDown={handleResizePointerDown('bottom-right')} style={{ position: 'absolute', right: -8, bottom: -8, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '2px solid #4286f4', cursor: 'nwse-resize', zIndex: 20 }} />
+      </>}
     </div>
   );
 }
@@ -644,23 +694,25 @@ export default function CanvasPage() {
   // Unified state for all elements
   const [elements, setElements] = useState(() => {
     try {
-      // Load saved state from localStorage on initial render
       const savedState = localStorage.getItem(`canvas-state-${boardId}`);
-      return savedState ? JSON.parse(savedState) : {
-        lines: [],
-        stickyNotes: [],
-        images: [],
-        textBoxes: [],
-      };
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        return {
+          lines: parsed.lines || [],
+          stickyNotes: parsed.stickyNotes || [],
+          images: parsed.images || [],
+          textBoxes: parsed.textBoxes || [],
+        };
+      }
     } catch (error) {
       console.error('Error loading saved state:', error);
-      return {
-        lines: [],
-        stickyNotes: [],
-        images: [],
-        textBoxes: [],
-      };
     }
+    return {
+      lines: [],
+      stickyNotes: [],
+      images: [],
+      textBoxes: []
+    };
   });
 
   const [drawing, setDrawing] = useState(false);
@@ -724,6 +776,9 @@ export default function CanvasPage() {
   const [editingTextSelection, setEditingTextSelection] = useState(null);
   const [lastEraserPos, setLastEraserPos] = useState(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const eraserPointsRef = useRef([]); // Store eraser points for batching
+  const erasingRef = useRef(false);
+  const animationFrameRef = useRef(null);
 
   // Save state to localStorage whenever elements change
   useEffect(() => {
@@ -740,27 +795,43 @@ export default function CanvasPage() {
     setRedoStack([]);
   };
 
-  // Erase logic for all elements
-  function eraseAt(x, y) {
+  // Batched erase logic
+  const batchErase = useCallback(() => {
+    if (eraserPointsRef.current.length === 0) return;
     setElements((prev) => {
-      // Erase lines
-      const lines = prev.lines.filter(line => !line.points.some(pt => 
-        Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2
-      ));
-      // Erase sticky notes
-      const stickyNotes = prev.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
-      // Erase images
-      const images = prev.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
-      // Erase text boxes
-      const textBoxes = prev.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
-      return { lines, stickyNotes, images, textBoxes };
+      let newElements = { ...prev };
+      eraserPointsRef.current.forEach(({ x, y }) => {
+        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+      });
+      // Always return all keys, even if empty
+      return {
+        lines: newElements.lines || [],
+        stickyNotes: newElements.stickyNotes || [],
+        images: newElements.images || [],
+        textBoxes: newElements.textBoxes || [],
+      };
     });
-  }
-  function isInBox(x, y, bx, by, bw, bh) {
-    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
-  }
+    eraserPointsRef.current = [];
+  }, [eraserSize]);
 
-  // Add mouse move handler with throttling
+  // Animation frame loop for erasing
+  useEffect(() => {
+    if (!erasingRef.current) return;
+    const loop = () => {
+      batchErase();
+      animationFrameRef.current = requestAnimationFrame(loop);
+    };
+    animationFrameRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animationFrameRef.current);
+  }, [batchErase]);
+
+  // Helper: isInBox (already defined)
+  // ... existing code ...
+
+  // Handler functions with real logic
   const handleMouseMove = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
@@ -768,119 +839,38 @@ export default function CanvasPage() {
       const y = e.clientY - rect.top;
       requestAnimationFrame(() => {
         setMousePos({ x, y });
-        if (tool === 'eraser') {
+        if (tool === 'eraser' && drawing) {
           setEraserPos({ x, y });
+          // Instantly erase at this point
+          setElements((prev) => {
+            let newElements = { ...prev };
+            newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+            newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+            newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+            newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+            return {
+              lines: newElements.lines || [],
+              stickyNotes: newElements.stickyNotes || [],
+              images: newElements.images || [],
+              textBoxes: newElements.textBoxes || [],
+            };
+          });
+        }
+        if (tool === 'draw' && drawing) {
+          setElements((prev) => {
+            if (!prev.lines.length) return prev;
+            const lines = [...prev.lines];
+            lines[lines.length - 1] = {
+              ...lines[lines.length - 1],
+              points: [...lines[lines.length - 1].points, { x, y }]
+            };
+            return { ...prev, lines };
+          });
         }
       });
     }
   };
 
-  // Update pointer move handler with throttling
-  const handlePointerMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    requestAnimationFrame(() => {
-      setMousePos({ x, y });
-      if (tool === 'eraser') {
-        setEraserPos({ x, y });
-      }
-    });
-
-    if (!drawing) return;
-    if (tool === 'draw') {
-      setElements((prev) => {
-        const newLines = [...prev.lines];
-        newLines[newLines.length - 1].points.push({ x, y });
-        return { ...prev, lines: newLines };
-      });
-    } else if (tool === 'eraser') {
-      // Interpolate between last and current position for smooth erasing
-      if (lastEraserPos) {
-        const steps = Math.ceil(Math.hypot(x - lastEraserPos.x, y - lastEraserPos.y) / (eraserSize / 2));
-        for (let i = 1; i <= steps; i++) {
-          const t = i / steps;
-          const ix = lastEraserPos.x + (x - lastEraserPos.x) * t;
-          const iy = lastEraserPos.y + (y - lastEraserPos.y) * t;
-          eraseAt(ix, iy);
-        }
-      } else {
-        eraseAt(x, y);
-      }
-      setLastEraserPos({ x, y });
-    }
-  };
-
-  const handlePointerDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (tool === 'draw') {
-      pushToUndo(elements);
-      setElements((prev) => ({
-        ...prev,
-        lines: [...prev.lines, { points: [{ x, y }], color, opacity }],
-      }));
-      setDrawing(true);
-    } else if (tool === 'eraser') {
-      pushToUndo(elements);
-      eraseAt(x, y);
-      setDrawing(true);
-      setEraserPos({ x, y });
-      setLastEraserPos({ x, y });
-      setEraserPreview(true);
-    }
-  };
-
-  const handlePointerUp = () => {
-    setDrawing(false);
-    setEraserPos(null);
-    setLastEraserPos(null);
-    setEraserPreview(false);
-  };
-
-  // Add sticky note, image, or text box
-  const handleCanvasPointerDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (tool === 'sticky') {
-      pushToUndo(elements);
-      setElements((prev) => ({
-        ...prev,
-        stickyNotes: [
-          ...prev.stickyNotes,
-          { id: Date.now(), x, y, text: "Sticky note" }
-        ]
-      }));
-    } else if (tool === 'text') {
-      pushToUndo(elements);
-      setElements((prev) => ({
-        ...prev,
-        textBoxes: [
-          ...prev.textBoxes,
-          { id: Date.now(), x, y, text: "Text" }
-        ]
-      }));
-    } else {
-      handlePointerDown(e);
-    }
-  };
-
-  // Add handler for adding image from modal
-  function handleAddImage({ type, src, position }) {
-    pushToUndo(elements);
-    setElements((prev) => ({
-      ...prev,
-      images: [
-        ...prev.images,
-        { id: Date.now(), x: position.x, y: position.y, src, width: 120, height: 90 }
-      ]
-    }));
-  }
-
-  // Undo/Redo logic
   const handleUndo = useCallback(() => {
     setUndoStack((prevUndo) => {
       if (prevUndo.length === 0) return prevUndo;
@@ -901,29 +891,201 @@ export default function CanvasPage() {
     });
   }, [elements]);
 
-  // Keyboard shortcuts for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        e.preventDefault();
-        handleUndo();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
-        e.preventDefault();
-        handleRedo();
+  const handleDownload = async (format) => {
+    try {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      // Create a temporary canvas to combine all elements
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      // Draw background
+      tempCtx.fillStyle = isDark ? '#18181b' : '#fafafa';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      // Draw all elements
+      // Draw lines
+      safeElements.lines.forEach((line) => {
+        tempCtx.save();
+        tempCtx.strokeStyle = line.color;
+        tempCtx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
+        tempCtx.lineWidth = 2.5;
+        tempCtx.beginPath();
+        line.points.forEach((pt, i) => {
+          if (i === 0) tempCtx.moveTo(pt.x, pt.y);
+          else tempCtx.lineTo(pt.x, pt.y);
+        });
+        tempCtx.stroke();
+        tempCtx.restore();
+      });
+      // Draw sticky notes
+      safeElements.stickyNotes.forEach((note) => {
+        tempCtx.save();
+        tempCtx.fillStyle = note.color || '#fff';
+        tempCtx.fillRect(note.x, note.y, 120, 80);
+        tempCtx.fillStyle = '#000';
+        tempCtx.font = '14px sans-serif';
+        tempCtx.fillText(note.text, note.x + 10, note.y + 20);
+        tempCtx.restore();
+      });
+      // Draw text boxes
+      safeElements.textBoxes.forEach((text) => {
+        tempCtx.save();
+        tempCtx.fillStyle = text.color || '#000';
+        tempCtx.font = '14px sans-serif';
+        tempCtx.fillText(text.text, text.x, text.y);
+        tempCtx.restore();
+      });
+      // Draw images
+      const imagePromises = safeElements.images.map((img) => {
+        return new Promise((resolve) => {
+          const image = new Image();
+          image.crossOrigin = 'anonymous';
+          image.onload = () => {
+            tempCtx.drawImage(image, img.x, img.y, img.width, img.height);
+            resolve();
+          };
+          image.onerror = () => resolve();
+          image.src = img.src;
+        });
+      });
+      await Promise.all(imagePromises);
+      if (format === 'pdf') {
+        const { jsPDF } = await import('jspdf');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: [tempCanvas.width, tempCanvas.height]
+        });
+        pdf.addImage(
+          tempCanvas.toDataURL('image/jpeg', 1.0),
+          'JPEG',
+          0,
+          0,
+          tempCanvas.width,
+          tempCanvas.height
+        );
+        pdf.save('canvas-export.pdf');
+      } else {
+        const link = document.createElement('a');
+        link.download = 'canvas-export.jpg';
+        link.href = tempCanvas.toDataURL('image/jpeg', 0.8);
+        link.click();
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleUndo, handleRedo]);
+      setShowDownloadModal(false);
+    } catch (error) {
+      console.error('Error downloading:', error);
+      alert('Error downloading the canvas. Please try again.');
+    }
+  };
 
-  // Draw lines on canvas
+  const handleCanvasPointerDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (tool === 'sticky') {
+      pushToUndo(elements);
+      const newId = Date.now();
+      setElements((prev) => ({
+        ...prev,
+        stickyNotes: [
+          ...prev.stickyNotes,
+          { id: newId, x, y, text: "", font: 'Inter, sans-serif', color: '#fff', width: 120, height: 80 }
+        ]
+      }));
+      setSelectedStickyId(newId);
+      setEditingStickyId(newId);
+      // Focus will be handled in StickyNote useEffect
+    } else if (tool === 'text') {
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        textBoxes: [
+          ...prev.textBoxes,
+          { id: Date.now(), x, y, text: "Text" }
+        ]
+      }));
+    } else {
+      handlePointerDown(e);
+    }
+  };
+
+  const handleTextSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editingTextRef.current && editingTextRef.current.contains(sel.anchorNode)) {
+      setEditingTextSelection(sel.getRangeAt(0));
+    } else {
+      setEditingTextSelection(null);
+    }
+  };
+
+  const handleToolbarToolSelect = (selectedTool) => {
+    console.log('handleToolbarToolSelect called with:', selectedTool);
+    setTool(selectedTool);
+    if (selectedTool === 'image') {
+      const x = window.innerWidth / 2 - 60;
+      const y = window.innerHeight / 2 - 45;
+      setPendingImagePos({ x, y });
+      setShowAddImageModal(true);
+    }
+  };
+
+  const handleAddImage = ({ type, src, position }) => {
+    pushToUndo(elements);
+    setElements((prev) => ({
+      ...prev,
+      images: [
+        ...prev.images,
+        { id: Date.now(), x: position.x, y: position.y, src, width: 120, height: 90 }
+      ]
+    }));
+  };
+
+  const safeElements = elements && typeof elements === 'object' ? elements : { lines: [], stickyNotes: [], images: [], textBoxes: [] };
+
+  const handlePointerDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (tool === 'draw') {
+      pushToUndo(elements);
+      setElements((prev) => ({
+        ...prev,
+        lines: [...prev.lines, { points: [{ x, y }], color, opacity }],
+      }));
+      setDrawing(true);
+    } else if (tool === 'eraser') {
+      pushToUndo(elements);
+      eraserPointsRef.current = [{ x, y }];
+      setDrawing(true);
+      setEraserPos({ x, y });
+      setEraserPreview(true);
+      erasingRef.current = true;
+    }
+  };
+
+  const handlePointerUp = () => {
+    setDrawing(false);
+    setEraserPos(null);
+    setEraserPreview(false);
+    erasingRef.current = false;
+    batchErase(); // Final erase for any remaining points
+  };
+
+  // Debug: log tool state changes
+  useEffect(() => {
+    console.log('Current tool:', tool);
+  }, [tool]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    elements.lines.forEach((line) => {
+
+    // Draw all lines
+    elements.lines.forEach(line => {
+      if (!line.points.length) return;
       ctx.save();
       ctx.strokeStyle = line.color;
       ctx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
@@ -938,178 +1100,35 @@ export default function CanvasPage() {
     });
   }, [elements.lines]);
 
-  // Replace setTool usage to intercept 'image' tool selection
-  function handleToolbarToolSelect(selectedTool) {
-    setTool(selectedTool);
-    if (selectedTool === 'image') {
-      // Center of viewport
-      const x = window.innerWidth / 2 - 60;
-      const y = window.innerHeight / 2 - 45;
-      setPendingImagePos({ x, y });
-      setShowAddImageModal(true);
-    }
-  }
-
-  // --- SOCKET.IO LOGIC ---
   useEffect(() => {
-    const socket = io(SOCKET_SERVER_URL);
-    socketRef.current = socket;
-    socket.emit('join-board', boardId);
-    socket.on('board-state', (data) => {
-      setElements(data);
-    });
-    socket.on('board-update', (data) => {
-      setElements(data);
-    });
-    return () => {
-      socket.disconnect();
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        e.preventDefault();
+        handleRedo();
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedStickyId) {
+        e.preventDefault();
+        // Find the sticky note and delete it
+        pushToUndo(elements);
+        setElements((prev) => ({
+          ...prev,
+          stickyNotes: prev.stickyNotes.filter(n => n.id !== selectedStickyId)
+        }));
+        setSelectedStickyId(null);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        // Only select all sticky notes if not editing any
+        if (!editingStickyId) {
+          e.preventDefault();
+          // Optionally, select all sticky notes or perform your own logic here
+          // For now, do nothing (or you could set a multi-select state)
+        }
+      }
     };
-  }, [boardId]);
-
-  // Broadcast changes to others
-  useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.emit('board-update', { boardId, data: elements });
-    }
-    
-  }, [elements]);
-
-  function applyStyleToSelection(styleType, value) {
-    if (editingStickyRef.current && editingStickySelection) {
-      editingStickyRef.current.focus();
-      document.getSelection().removeAllRanges();
-      document.getSelection().addRange(editingStickySelection);
-      if (styleType === 'color') {
-        document.execCommand('foreColor', false, value);
-      } else if (styleType === 'font') {
-        document.execCommand('fontName', false, value);
-      }
-    }
-  }
-
-  function handleTextSelection() {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && editingTextRef.current && editingTextRef.current.contains(sel.anchorNode)) {
-      setEditingTextSelection(sel.getRangeAt(0));
-    } else {
-      setEditingTextSelection(null);
-    }
-  }
-
-  function applyStyleToTextSelection(styleType, value) {
-    if (editingTextRef.current && editingTextSelection) {
-      editingTextRef.current.focus();
-      document.getSelection().removeAllRanges();
-      document.getSelection().addRange(editingTextSelection);
-      if (styleType === 'color') {
-        document.execCommand('foreColor', false, value);
-      } else if (styleType === 'font') {
-        document.execCommand('fontName', false, value);
-      }
-    }
-  }
-
-  // Download handlers
-  const handleDownload = async (format) => {
-    try {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      // Create a temporary canvas to combine all elements
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      
-      // Draw background
-      tempCtx.fillStyle = isDark ? '#18181b' : '#fafafa';
-      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-      
-      // Draw all elements
-      // Draw lines
-      elements.lines.forEach((line) => {
-        tempCtx.save();
-        tempCtx.strokeStyle = line.color;
-        tempCtx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
-        tempCtx.lineWidth = 2.5;
-        tempCtx.beginPath();
-        line.points.forEach((pt, i) => {
-          if (i === 0) tempCtx.moveTo(pt.x, pt.y);
-          else tempCtx.lineTo(pt.x, pt.y);
-        });
-        tempCtx.stroke();
-        tempCtx.restore();
-      });
-      
-      // Draw sticky notes
-      elements.stickyNotes.forEach((note) => {
-        tempCtx.save();
-        tempCtx.fillStyle = note.color || '#fff';
-        tempCtx.fillRect(note.x, note.y, 120, 80);
-        tempCtx.fillStyle = '#000';
-        tempCtx.font = '14px sans-serif';
-        tempCtx.fillText(note.text, note.x + 10, note.y + 20);
-        tempCtx.restore();
-      });
-      
-      // Draw text boxes
-      elements.textBoxes.forEach((text) => {
-        tempCtx.save();
-        tempCtx.fillStyle = text.color || '#000';
-        tempCtx.font = '14px sans-serif';
-        tempCtx.fillText(text.text, text.x, text.y);
-        tempCtx.restore();
-      });
-      
-      // Draw images
-      const imagePromises = elements.images.map((img) => {
-        return new Promise((resolve) => {
-          const image = new Image();
-          image.crossOrigin = 'anonymous';
-          image.onload = () => {
-            tempCtx.drawImage(image, img.x, img.y, img.width, img.height);
-            resolve();
-          };
-          image.onerror = () => resolve();
-          image.src = img.src;
-        });
-      });
-      
-      await Promise.all(imagePromises);
-      
-      if (format === 'pdf') {
-        // Convert to PDF using jsPDF
-        const { jsPDF } = await import('jspdf');
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'px',
-          format: [tempCanvas.width, tempCanvas.height]
-        });
-        
-        pdf.addImage(
-          tempCanvas.toDataURL('image/jpeg', 1.0),
-          'JPEG',
-          0,
-          0,
-          tempCanvas.width,
-          tempCanvas.height
-        );
-        
-        pdf.save('canvas-export.pdf');
-      } else {
-        // Download as JPG
-        const link = document.createElement('a');
-        link.download = 'canvas-export.jpg';
-        link.href = tempCanvas.toDataURL('image/jpeg', 0.8);
-        link.click();
-      }
-      
-      setShowDownloadModal(false);
-    } catch (error) {
-      console.error('Error downloading:', error);
-      alert('Error downloading the canvas. Please try again.');
-    }
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo, selectedStickyId, elements, editingStickyId]);
 
   return (
     <div 
@@ -1133,8 +1152,8 @@ export default function CanvasPage() {
         setOpacity={setOpacity}
         selectedStickyId={selectedStickyId}
         selectedTextId={selectedTextId}
-        stickyFont={selectedStickyId ? elements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
-        textFont={selectedTextId ? elements.textBoxes.find(t => t.id === selectedTextId)?.font : ''}
+        stickyFont={selectedStickyId ? safeElements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
+        textFont={selectedTextId ? safeElements.textBoxes.find(t => t.id === selectedTextId)?.font : ''}
         onStickyColorChange={(newColor) => {
           if (!selectedStickyId) return;
           pushToUndo(elements);
@@ -1170,7 +1189,7 @@ export default function CanvasPage() {
             textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, font: newFont } : t)
           }));
         }}
-        elements={elements}
+        elements={safeElements}
       />
       <canvas
         ref={canvasRef}
@@ -1182,20 +1201,20 @@ export default function CanvasPage() {
           background: 'transparent',
         }}
         onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handlePointerMove}
+        onPointerMove={handleMouseMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       />
       {/* Sticky Notes */}
-      {elements.stickyNotes.map((note) => (
+      {safeElements.stickyNotes.map((note) => (
         <StickyNote
           key={note.id}
           id={note.id}
           x={note.x}
           y={note.y}
-          width={120}
-          height={80}
-          rotation={0}
+          width={note.width || 120}
+          height={note.height || 80}
+          rotation={note.rotation || 0}
           color={note.color || "#fff"}
           font={note.font || "Inter, sans-serif"}
           text={note.text}
@@ -1232,19 +1251,12 @@ export default function CanvasPage() {
               stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, ...size } : n)
             }));
           }}
-          onRotate={(rotation) => {
-            pushToUndo(elements);
-            setElements((prev) => ({
-              ...prev,
-              stickyNotes: prev.stickyNotes.map(n => n.id === note.id ? { ...n, rotation } : n)
-            }));
-          }}
           editingRef={editingStickyId === note.id ? editingStickyRef : undefined}
           onSelectionChange={editingStickyId === note.id ? setEditingStickySelection : undefined}
         />
       ))}
       {/* Images */}
-      {elements.images.map((img) => (
+      {safeElements.images.map((img) => (
         <Draggable
           key={img.id}
           x={img.x}
@@ -1261,7 +1273,7 @@ export default function CanvasPage() {
         </Draggable>
       ))}
       {/* Text Boxes */}
-      {elements.textBoxes.map((tb) => (
+      {safeElements.textBoxes.map((tb) => (
         <Draggable
           key={tb.id}
           x={tb.x}
