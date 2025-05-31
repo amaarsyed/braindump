@@ -24,11 +24,14 @@ function ChatPage() {
     setInput('');
     setIsLoading(true);
 
+    console.log("Sending API key:", process.env.REACT_APP_API_KEY);
+    
     try {
       const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'api-key': process.env.REACT_APP_API_KEY
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],

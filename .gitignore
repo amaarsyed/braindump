@@ -32,5 +32,4 @@ frontend/.env
 
 node_modules/
 .cache/
-#api 
-.env
+

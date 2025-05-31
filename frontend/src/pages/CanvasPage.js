@@ -1121,15 +1121,31 @@ export default function CanvasPage() {
       setEraserPos({ x, y });
       setEraserPreview(true);
       erasingRef.current = true;
+      // Add initial erase point
+      setElements((prev) => {
+        let newElements = { ...prev };
+        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+        return {
+          lines: newElements.lines || [],
+          stickyNotes: newElements.stickyNotes || [],
+          images: newElements.images || [],
+          textBoxes: newElements.textBoxes || [],
+        };
+      });
     }
   };
 
   const handlePointerUp = () => {
+    if (tool === 'eraser') {
+      batchErase(); // Final erase for any remaining points
+    }
     setDrawing(false);
     setEraserPos(null);
     setEraserPreview(false);
     erasingRef.current = false;
-    batchErase(); // Final erase for any remaining points
   };
 
   // Debug: log tool state changes

@@ -1,13 +1,15 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import os
 import requests
 from dotenv import load_dotenv
+load_dotenv()
 import secrets
+from auth import authorize_request
 
-# Load environment variables from .env file (private, not exposed to frontend)
+# Load environment variables from .env file 
 load_dotenv()
 
 app = FastAPI()
@@ -21,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get API keys from environment variables (private, not VITE_*)
+# Get API keys from environment variables 
 API_KEY = os.getenv("API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
@@ -40,7 +42,9 @@ class ChatResponse(BaseModel):
     response: str
 
 def generate_response(messages: List[Message]) -> str:
-    conversation = [{"role": "system", "content": "You are JARVIS, an AI assistant for a whiteboard application. Act like JARVIS from Iron Man, providing helpful, witty, and concise responses."}]
+    print("Calling OpenRouter API with messages:", messages)
+    print("Using OPENROUTER_API_KEY:", OPENROUTER_API_KEY)
+    conversation = [{"role": "system", "content": "You are Boardly, an AI assistant for a whiteboard application. Act like whiteboard, providing helpful, witty, and concise responses."}]
     conversation.extend([{"role": msg.role, "content": msg.content} for msg in messages])
     try:
         response = requests.post(
@@ -62,9 +66,7 @@ def generate_response(messages: List[Message]) -> str:
         raise HTTPException(status_code=500, detail=f"Error calling OpenRouter API: {str(e)}")
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, api_key: str = Header(None, alias="api-key")):
-    if not api_key or not secrets.compare_digest(api_key, API_KEY):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+async def chat(request: ChatRequest, authorized: None = Depends(authorize_request)):
     try:
         response = generate_response(request.messages)
         return ChatResponse(response=response)
