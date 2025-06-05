@@ -248,7 +248,7 @@ function BottomToolbar({ tool, setTool }) {
 }
 
 // Right Toolbar
-function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, penThickness, setPenThickness, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange, elements }) {
+function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacity, setOpacity, penThickness, setPenThickness, selectedStickyId, selectedTextId, stickyFont, textFont, onStickyColorChange, onStickyFontChange, onTextColorChange, onTextFontChange, elements, hidePenControls }) {
   const COLORS = ["#fff", "#000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14"];
   
   // Determine if color palette should be enabled
@@ -375,6 +375,45 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
             onChange={(e) => setEraserSize(Number(e.target.value))}
             className="w-full"
           />
+        </div>
+      )}
+      {!hidePenControls && tool === 'draw' && (
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Pen Thickness</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{penThickness}px</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LuGripHorizontal />
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={penThickness}
+              onChange={e => setPenThickness(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
+      {!hidePenControls && tool === 'draw' && (
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Opacity</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LuGripHorizontal />
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.01"
+              value={opacity}
+              onChange={e => setOpacity(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -700,6 +739,130 @@ function StickyNote({
 
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Change if deploying
 
+// --- Smoothing function for pen lines ---
+function getCatmullRomSpline(points, tension = 0.5, numOfSegments = 16) {
+  if (points.length < 2) return points;
+  let result = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    let p0 = points[i - 1] || points[i];
+    let p1 = points[i];
+    let p2 = points[i + 1] || points[i];
+    let p3 = points[i + 2] || p2;
+    for (let t = 0; t < numOfSegments; t++) {
+      let tt = t / numOfSegments;
+      let tt2 = tt * tt;
+      let tt3 = tt2 * tt;
+      let x = 0.5 * ((2 * p1.x) +
+        (-p0.x + p2.x) * tt +
+        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * tt2 +
+        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * tt3);
+      let y = 0.5 * ((2 * p1.y) +
+        (-p0.y + p2.y) * tt +
+        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * tt2 +
+        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * tt3);
+      result.push({ x, y });
+    }
+  }
+  result.push(points[points.length - 1]);
+  return result;
+}
+
+function PenMiniToolbar({ color, setColor, penThickness, setPenThickness, opacity, setOpacity, visible }) {
+  const [dragging, setDragging] = useState(false);
+  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: 80 });
+  const toolbarRef = useRef(null);
+  const COLORS = ["#000000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14", "#ffffff"];
+
+  useEffect(() => {
+    function handleMouseMove(e) {
+      if (!dragging) return;
+      setPosition((prev) => ({
+        x: e.clientX - 60,
+        y: e.clientY - 20,
+      }));
+    }
+    function handleMouseUp() {
+      setDragging(false);
+    }
+    if (dragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging]);
+
+  if (!visible) return null;
+  return (
+    <div
+      ref={toolbarRef}
+      className="z-50 flex flex-col items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-3 gap-3 select-none"
+      style={{
+        minWidth: 120,
+        position: "fixed",
+        left: position.x,
+        top: position.y,
+        transition: dragging ? 'none' : 'box-shadow 0.2s, left 0.3s cubic-bezier(.4,2,.6,1), top 0.3s cubic-bezier(.4,2,.6,1)',
+        cursor: dragging ? 'grabbing' : 'default',
+        userSelect: 'none',
+      }}
+      aria-label="Pen quick settings toolbar"
+    >
+      <div
+        className="flex items-center justify-center w-full mb-1 cursor-grab"
+        style={{ height: 18 }}
+        onMouseDown={() => setDragging(true)}
+        aria-label="Drag pen toolbar"
+        tabIndex={0}
+      >
+        <LuGripHorizontal size={22} className="text-gray-400" />
+      </div>
+      <div className="flex gap-2 mb-1 items-center">
+        {COLORS.map((c, idx) => (
+          <button
+            key={c + idx}
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'}`}
+            style={{ background: c }}
+            onClick={() => setColor(c)}
+            aria-label={`Select pen color ${c}`}
+          >
+            {color === c && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 w-full">
+        <span className="text-xs text-gray-500 dark:text-gray-400">Thickness</span>
+        <input
+          type="range"
+          min="1"
+          max="20"
+          value={penThickness}
+          onChange={e => setPenThickness(Number(e.target.value))}
+          className="w-24"
+          aria-label="Pen thickness"
+        />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{penThickness}px</span>
+      </div>
+      <div className="flex items-center gap-2 w-full">
+        <span className="text-xs text-gray-500 dark:text-gray-400">Opacity</span>
+        <input
+          type="range"
+          min="0.1"
+          max="1"
+          step="0.01"
+          value={opacity}
+          onChange={e => setOpacity(Number(e.target.value))}
+          className="w-24"
+          aria-label="Pen opacity"
+        />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+      </div>
+    </div>
+  );
+}
+
 export default function CanvasPage() {
   // Initialize boardId first
   const [boardId] = useState(() => {
@@ -780,7 +943,7 @@ export default function CanvasPage() {
   const [editingStickyId, setEditingStickyId] = useState(null);
   const [selectedStickyId, setSelectedStickyId] = useState(null);
   const [selectedTextId, setSelectedTextId] = useState(null);
-  const [tool, setTool] = useState('draw');
+  const [tool, setTool] = useState('select');
   const [color, setColor] = useState("#222");
   const [opacity, setOpacity] = useState(1);
   const [penThickness, setPenThickness] = useState(2);
@@ -800,99 +963,10 @@ export default function CanvasPage() {
   const eraserPointsRef = useRef([]); // Store eraser points for batching
   const erasingRef = useRef(false);
   const animationFrameRef = useRef(null);
-
-  // Save state to localStorage whenever elements change
-  useEffect(() => {
-    try {
-      localStorage.setItem(`canvas-state-${boardId}`, JSON.stringify(elements));
-    } catch (error) {
-      console.error('Error saving state:', error);
-    }
-  }, [elements, boardId]);
-
-  // Helper: push to undo stack
-  const pushToUndo = (current) => {
-    setUndoStack((prev) => [...prev, current]);
-    setRedoStack([]);
-  };
-
-  // Batched erase logic
-  const batchErase = useCallback(() => {
-    if (eraserPointsRef.current.length === 0) return;
-    setElements((prev) => {
-      let newElements = { ...prev };
-      eraserPointsRef.current.forEach(({ x, y }) => {
-        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
-        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
-        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
-        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
-      });
-      // Always return all keys, even if empty
-      return {
-        lines: newElements.lines || [],
-        stickyNotes: newElements.stickyNotes || [],
-        images: newElements.images || [],
-        textBoxes: newElements.textBoxes || [],
-      };
-    });
-    eraserPointsRef.current = [];
-  }, [eraserSize]);
-
-  // Animation frame loop for erasing
-  useEffect(() => {
-    if (!erasingRef.current) return;
-    const loop = () => {
-      batchErase();
-      animationFrameRef.current = requestAnimationFrame(loop);
-    };
-    animationFrameRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationFrameRef.current);
-  }, [batchErase]);
-
-  // Helper: isInBox (already defined)
-  // ... existing code ...
-
-  // Handler functions with real logic
-  const handleMouseMove = (e) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      requestAnimationFrame(() => {
-        setMousePos({ x, y });
-        if (tool === 'eraser' && drawing) {
-          setEraserPos({ x, y });
-          // Instantly erase at this point
-          setElements((prev) => {
-            let newElements = { ...prev };
-            newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
-            newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
-            newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
-            newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
-            return {
-              lines: newElements.lines || [],
-              stickyNotes: newElements.stickyNotes || [],
-              images: newElements.images || [],
-              textBoxes: newElements.textBoxes || [],
-            };
-          });
-        }
-        if (tool === 'draw' && drawing) {
-          setElements((prev) => {
-            if (!prev.lines.length) return prev;
-            const lines = [...prev.lines];
-            const currentLine = lines[lines.length - 1];
-            lines[lines.length - 1] = {
-              ...currentLine,
-              points: [...currentLine.points, { x, y }],
-              thickness: penThickness // Ensure thickness is maintained
-            };
-            return { ...prev, lines };
-          });
-        }
-      });
-    }
-  };
+  const eraserCursorRef = useRef(null);
+  const cursorAnimationFrameRef = useRef(null);
+  // Position the toolbar under the top controls bar by default (right-aligned, matching screenshot)
+  const [position, setPosition] = useState({ x: window.innerWidth - 24 - 320, y: 80 });
 
   const handleUndo = useCallback(() => {
     setUndoStack((prevUndo) => {
@@ -934,17 +1008,12 @@ export default function CanvasPage() {
         tempCtx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
         tempCtx.lineWidth = line.thickness || 2.5;
         tempCtx.beginPath();
-        for (let i = 0; i < line.points.length - 1; i++) {
-          const p0 = line.points[i];
-          const p1 = line.points[i + 1];
-          const midX = (p0.x + p1.x) / 2;
-          const midY = (p0.y + p1.y) / 2;
-          if (i === 0) {
-            tempCtx.moveTo(p0.x, p0.y);
-          }
-          tempCtx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+        const smoothPoints = getCatmullRomSpline(line.points);
+        ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
+        for (let i = 1; i < smoothPoints.length; i++) {
+          ctx.lineTo(smoothPoints[i].x, smoothPoints[i].y);
         }
-        tempCtx.stroke();
+        ctx.stroke();
         tempCtx.restore();
       });
       // Draw sticky notes
@@ -1008,6 +1077,141 @@ export default function CanvasPage() {
     }
   };
 
+  // Save state to localStorage whenever elements change
+  useEffect(() => {
+    try {
+      localStorage.setItem(`canvas-state-${boardId}`, JSON.stringify(elements));
+    } catch (error) {
+      console.error('Error saving state:', error);
+    }
+  }, [elements, boardId]);
+
+  // Helper: push to undo stack
+  const pushToUndo = (current) => {
+    setUndoStack((prev) => [...prev, current]);
+    setRedoStack([]);
+  };
+
+  // Batched erase logic
+  const batchErase = useCallback(() => {
+    if (eraserPointsRef.current.length === 0) return;
+    setElements((prev) => {
+      let newElements = { ...prev };
+      eraserPointsRef.current.forEach(({ x, y }) => {
+        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+      });
+      // Always return all keys, even if empty
+      return {
+        lines: newElements.lines || [],
+        stickyNotes: newElements.stickyNotes || [],
+        images: newElements.images || [],
+        textBoxes: newElements.textBoxes || [],
+      };
+    });
+    eraserPointsRef.current = [];
+  }, [eraserSize]);
+
+  // Animation frame loop for erasing
+  useEffect(() => {
+    if (!erasingRef.current) return;
+    const loop = () => {
+      batchErase();
+      animationFrameRef.current = requestAnimationFrame(loop);
+    };
+    animationFrameRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animationFrameRef.current);
+  }, [batchErase]);
+
+  // Add effect for smooth cursor movement
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!eraserCursorRef.current || tool !== 'eraser') return;
+      
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Cancel any pending animation frame
+      if (cursorAnimationFrameRef.current) {
+        cancelAnimationFrame(cursorAnimationFrameRef.current);
+      }
+
+      // Use requestAnimationFrame for smooth cursor movement
+      cursorAnimationFrameRef.current = requestAnimationFrame(() => {
+        if (eraserCursorRef.current) {
+          eraserCursorRef.current.style.transform = `translate3d(${x - eraserSize / 2}px, ${y - eraserSize / 2}px, 0)`;
+        }
+      });
+      
+      // Update state for other operations
+      setMousePos({ x, y });
+    };
+
+    if (tool === 'eraser') {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (cursorAnimationFrameRef.current) {
+        cancelAnimationFrame(cursorAnimationFrameRef.current);
+      }
+    };
+  }, [tool, eraserSize]);
+
+  const handleMouseMove = (e) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Only process erasing/drawing if we're actually drawing
+    if (!drawing) return;
+    
+    // Handle eraser and drawing in requestAnimationFrame
+    if (tool === 'eraser') {
+      requestAnimationFrame(() => {
+        // Add point to eraser points array
+        eraserPointsRef.current.push({ x, y });
+        // Instantly erase at this point
+        setElements((prev) => {
+          let newElements = { ...prev };
+          newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+          newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+          newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+          newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+          return {
+            lines: newElements.lines || [],
+            stickyNotes: newElements.stickyNotes || [],
+            images: newElements.images || [],
+            textBoxes: newElements.textBoxes || [],
+          };
+        });
+      });
+    } else if (tool === 'draw') {
+      requestAnimationFrame(() => {
+        setElements((prev) => {
+          if (!prev.lines.length) return prev;
+          const lines = [...prev.lines];
+          const currentLine = lines[lines.length - 1];
+          lines[lines.length - 1] = {
+            ...currentLine,
+            points: [...currentLine.points, { x, y }],
+            thickness: penThickness
+          };
+          return { ...prev, lines };
+        });
+      });
+    }
+  };
+
+  // Handler functions with real logic
   const handleCanvasPointerDown = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -1027,6 +1231,27 @@ export default function CanvasPage() {
           thickness: penThickness
         }]
       }));
+    } else if (tool === 'eraser') {
+      pushToUndo(elements);
+      eraserPointsRef.current = [{ x, y }];
+      setDrawing(true);
+      setEraserPos({ x, y });
+      setEraserPreview(true);
+      erasingRef.current = true;
+      // Add initial erase point
+      setElements((prev) => {
+        let newElements = { ...prev };
+        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
+        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
+        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
+        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
+        return {
+          lines: newElements.lines || [],
+          stickyNotes: newElements.stickyNotes || [],
+          images: newElements.images || [],
+          textBoxes: newElements.textBoxes || [],
+        };
+      });
     } else if (tool === 'sticky') {
       pushToUndo(elements);
       const newId = Date.now();
@@ -1103,44 +1328,10 @@ export default function CanvasPage() {
 
   const safeElements = elements && typeof elements === 'object' ? elements : { lines: [], stickyNotes: [], images: [], textBoxes: [] };
 
-  const handlePointerDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (tool === 'draw') {
-      pushToUndo(elements);
-      setElements((prev) => ({
-        ...prev,
-        lines: [...prev.lines, { points: [{ x, y }], color, opacity, thickness: penThickness }],
-      }));
-      setDrawing(true);
-    } else if (tool === 'eraser') {
-      pushToUndo(elements);
-      eraserPointsRef.current = [{ x, y }];
-      setDrawing(true);
-      setEraserPos({ x, y });
-      setEraserPreview(true);
-      erasingRef.current = true;
-      // Add initial erase point
-      setElements((prev) => {
-        let newElements = { ...prev };
-        newElements.lines = newElements.lines.filter(line => !line.points.some(pt => Math.hypot(x - pt.x, y - pt.y) < eraserSize / 2));
-        newElements.stickyNotes = newElements.stickyNotes.filter(note => !isInBox(x, y, note.x, note.y, 120, 80));
-        newElements.images = newElements.images.filter(img => !isInBox(x, y, img.x, img.y, img.width, img.height));
-        newElements.textBoxes = newElements.textBoxes.filter(tb => !isInBox(x, y, tb.x, tb.y, 120, 40));
-        return {
-          lines: newElements.lines || [],
-          stickyNotes: newElements.stickyNotes || [],
-          images: newElements.images || [],
-          textBoxes: newElements.textBoxes || [],
-        };
-      });
-    }
-  };
-
   const handlePointerUp = () => {
     if (tool === 'eraser') {
       batchErase(); // Final erase for any remaining points
+      eraserPointsRef.current = []; // Clear eraser points
     }
     setDrawing(false);
     setEraserPos(null);
@@ -1159,7 +1350,7 @@ export default function CanvasPage() {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw all lines
+    // Draw all lines with smoothing
     elements.lines.forEach(line => {
       if (!line.points.length) return;
       ctx.save();
@@ -1167,15 +1358,10 @@ export default function CanvasPage() {
       ctx.globalAlpha = line.opacity !== undefined ? line.opacity : 1;
       ctx.lineWidth = line.thickness || 2.5;
       ctx.beginPath();
-      for (let i = 0; i < line.points.length - 1; i++) {
-        const p0 = line.points[i];
-        const p1 = line.points[i + 1];
-        const midX = (p0.x + p1.x) / 2;
-        const midY = (p0.y + p1.y) / 2;
-        if (i === 0) {
-          ctx.moveTo(p0.x, p0.y);
-        }
-        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+      const smoothPoints = getCatmullRomSpline(line.points);
+      ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
+      for (let i = 1; i < smoothPoints.length; i++) {
+        ctx.lineTo(smoothPoints[i].x, smoothPoints[i].y);
       }
       ctx.stroke();
       ctx.restore();
@@ -1212,10 +1398,65 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo, selectedStickyId, elements, editingStickyId]);
 
+  // --- Touch event handlers for drawing ---
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Touch start
+    const handleTouchStart = (e) => {
+      if (tool !== 'draw') return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      setDrawing(true);
+      pushToUndo(elements);
+      setElements(prev => ({
+        ...prev,
+        lines: [...prev.lines, {
+          points: [{ x, y }],
+          color,
+          opacity,
+          thickness: penThickness
+        }]
+      }));
+    };
+    // Touch move
+    const handleTouchMove = (e) => {
+      if (!drawing || tool !== 'draw') return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      setElements((prev) => {
+        if (!prev.lines.length) return prev;
+        const lines = [...prev.lines];
+        const currentLine = lines[lines.length - 1];
+        lines[lines.length - 1] = {
+          ...currentLine,
+          points: [...currentLine.points, { x, y }],
+          thickness: penThickness
+        };
+        return { ...prev, lines };
+      });
+    };
+    // Touch end
+    const handleTouchEnd = () => {
+      setDrawing(false);
+    };
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [tool, drawing, color, opacity, penThickness, elements]);
+
   return (
     <div 
       className="h-screen w-screen relative bg-gray-50 dark:bg-dark"
-      onMouseMove={handleMouseMove}
     >
       <LogoStandalone />
       <TopControlsBox 
@@ -1224,57 +1465,69 @@ export default function CanvasPage() {
         boardId={boardId} 
         onDownload={handleDownload}
       />
-      <RightToolbar
-        tool={tool}
-        eraserSize={eraserSize}
-        setEraserSize={setEraserSize}
+      <PenMiniToolbar
         color={color}
         setColor={setColor}
-        opacity={opacity}
-        setOpacity={setOpacity}
         penThickness={penThickness}
         setPenThickness={setPenThickness}
-        selectedStickyId={selectedStickyId}
-        selectedTextId={selectedTextId}
-        stickyFont={selectedStickyId ? safeElements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
-        textFont={selectedTextId ? safeElements.textBoxes.find(t => t.id === selectedTextId)?.font : ''}
-        onStickyColorChange={(newColor) => {
-          if (!selectedStickyId) return;
-          pushToUndo(elements);
-          setElements((prev) => ({
-            ...prev,
-            stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, color: newColor } : n)
-          }));
-          setColor(newColor);
-        }}
-        onStickyFontChange={(newFont) => {
-          if (!selectedStickyId) return;
-          pushToUndo(elements);
-          setElements((prev) => ({
-            ...prev,
-            stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, font: newFont } : n)
-          }));
-          setStickyFont(newFont);
-        }}
-        onTextColorChange={(newColor) => {
-          if (!selectedTextId) return;
-          pushToUndo(elements);
-          setElements((prev) => ({
-            ...prev,
-            textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, color: newColor } : t)
-          }));
-          setColor(newColor);
-        }}
-        onTextFontChange={(newFont) => {
-          if (!selectedTextId) return;
-          pushToUndo(elements);
-          setElements((prev) => ({
-            ...prev,
-            textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, font: newFont } : t)
-          }));
-        }}
-        elements={safeElements}
+        opacity={opacity}
+        setOpacity={setOpacity}
+        visible={tool === 'draw'}
       />
+      {tool !== 'draw' && (
+        <RightToolbar
+          tool={tool}
+          eraserSize={eraserSize}
+          setEraserSize={setEraserSize}
+          color={color}
+          setColor={setColor}
+          opacity={opacity}
+          setOpacity={setOpacity}
+          penThickness={penThickness}
+          setPenThickness={setPenThickness}
+          selectedStickyId={selectedStickyId}
+          selectedTextId={selectedTextId}
+          stickyFont={selectedStickyId ? safeElements.stickyNotes.find(n => n.id === selectedStickyId)?.font : ''}
+          textFont={selectedTextId ? safeElements.textBoxes.find(t => t.id === selectedTextId)?.font : ''}
+          onStickyColorChange={(newColor) => {
+            if (!selectedStickyId) return;
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, color: newColor } : n)
+            }));
+            setColor(newColor);
+          }}
+          onStickyFontChange={(newFont) => {
+            if (!selectedStickyId) return;
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              stickyNotes: prev.stickyNotes.map(n => n.id === selectedStickyId ? { ...n, font: newFont } : n)
+            }));
+            setStickyFont(newFont);
+          }}
+          onTextColorChange={(newColor) => {
+            if (!selectedTextId) return;
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, color: newColor } : t)
+            }));
+            setColor(newColor);
+          }}
+          onTextFontChange={(newFont) => {
+            if (!selectedTextId) return;
+            pushToUndo(elements);
+            setElements((prev) => ({
+              ...prev,
+              textBoxes: prev.textBoxes.map(t => t.id === selectedTextId ? { ...t, font: newFont } : t)
+            }));
+          }}
+          elements={safeElements}
+          hidePenControls={tool === 'draw'}
+        />
+      )}
       <canvas
         ref={canvasRef}
         width={window.innerWidth}
@@ -1283,11 +1536,13 @@ export default function CanvasPage() {
         style={{
           cursor: tool === 'draw' ? 'crosshair' : tool === 'eraser' ? 'none' : 'default',
           background: 'transparent',
+          touchAction: 'none',
         }}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handleMouseMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       />
       {/* Sticky Notes */}
       {safeElements.stickyNotes.map((note) => (
@@ -1407,10 +1662,9 @@ export default function CanvasPage() {
       {/* Eraser cursor and preview */}
       {tool === 'eraser' && (
         <div
+          ref={eraserCursorRef}
           style={{
-            position: 'fixed',
-            left: mousePos.x + canvasRef.current?.getBoundingClientRect().left - eraserSize / 2,
-            top: mousePos.y + canvasRef.current?.getBoundingClientRect().top - eraserSize / 2,
+            position: 'absolute',
             width: eraserSize,
             height: eraserSize,
             pointerEvents: 'none',
@@ -1419,12 +1673,21 @@ export default function CanvasPage() {
             background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
             boxShadow: '0 0 8px 2px rgba(248,113,113,0.2)',
             zIndex: 1000,
-            transition: 'transform 0.05s ease-out',
-            transform: 'translate3d(0, 0, 0)',
             willChange: 'transform',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            WebkitPerspective: 1000,
+            WebkitFontSmoothing: 'antialiased',
+            WebkitOverflowScrolling: 'touch',
+            transform: 'translate3d(0, 0, 0)',
+            transition: 'none',
+            transformOrigin: 'center center',
+            WebkitTransformOrigin: 'center center',
+            WebkitTransform: 'translate3d(0, 0, 0)',
+            WebkitTransition: 'none',
           }}
         >
           {/* Small crosshair in the center */}
@@ -1435,6 +1698,10 @@ export default function CanvasPage() {
               background: '#f87171',
               borderRadius: '50%',
               boxShadow: '0 0 2px 1px rgba(248,113,113,0.5)',
+              transform: 'translate3d(0, 0, 0)',
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
           />
         </div>
