@@ -32,7 +32,7 @@ const Canvas = () => {
       if (isErasing) {
         // Example: log erasing position
         console.log('Erasing at', e.clientX, e.clientY);
-        // TODO: Add your erase logic here
+        // TODO: 
       }
     }
   };

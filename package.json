@@ -5,8 +5,7 @@
   "scripts": {
     "start": "concurrently \"cd frontend && npm start\" \"cd backend && python main.py\"",
     "install-all": "npm install && cd frontend && npm install --legacy-peer-deps && cd ../backend && pip install -r requirements.txt",
-    "build": "cd frontend && npm run build",
-    "vercel-build": "npm run build"
+    "build": "cd frontend && npm run build"
   },
   "dependencies": {
     "@cursorify/react": "^0.0.43",
@@ -17,7 +16,6 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "@vercel/node": "^3.0.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "express": "^4.18.2",
