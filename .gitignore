@@ -33,3 +33,4 @@ frontend/.env
 node_modules/
 .cache/
 
+.vercel
