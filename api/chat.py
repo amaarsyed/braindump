@@ -25,10 +25,10 @@ class handler(BaseHTTPRequestHandler):
             # Get API key from environment
             api_key = os.environ.get("OPENROUTER_API_KEY")
             if not api_key:
-                self.send_error_response(500, "OpenRouter API key not set")
+                self.send_error_response(500, "API key not configured. Please set OPENROUTER_API_KEY in Vercel environment variables.")
                 return
             
-            # Call OpenRouter API
+            # Call OpenRouter API with simpler free model
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
@@ -38,19 +38,26 @@ class handler(BaseHTTPRequestHandler):
                     "X-Title": "Braindump Chat"
                 },
                 json={
-                    "model": "mistralai/mistral-7b-instruct:free",
+                    "model": "nousresearch/hermes-3-llama-3.1-405b:free",
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 150,
+                    "max_tokens": 100,
                     "temperature": 0.7
                 },
                 timeout=30
             )
             
             if response.status_code != 200:
-                self.send_error_response(response.status_code, f"OpenRouter API error: {response.text}")
+                error_text = response.text[:200]  # Limit error message length
+                self.send_error_response(response.status_code, f"API error: {error_text}")
                 return
             
             result = response.json()
+            
+            # Check if the response has the expected structure
+            if 'choices' not in result or len(result['choices']) == 0:
+                self.send_error_response(500, "Invalid API response format")
+                return
+                
             answer = result["choices"][0]["message"]["content"]
             
             # Send success response
@@ -63,9 +70,12 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(response_data.encode('utf-8'))
             
         except requests.exceptions.Timeout:
-            self.send_error_response(504, "Request timeout")
+            self.send_error_response(504, "Request timeout - API took too long to respond")
+        except requests.exceptions.RequestException as e:
+            self.send_error_response(500, f"Network error: {str(e)}")
         except Exception as e:
-            self.send_error_response(500, f"Internal server error: {str(e)}")
+            print(f"Error in chat API: {str(e)}")  # Server-side logging
+            self.send_error_response(500, f"Server error: {str(e)}")
     
     def do_OPTIONS(self):
         # Handle CORS preflight
