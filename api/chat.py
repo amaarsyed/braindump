@@ -48,11 +48,11 @@ def handler(request):
         }
 
     # Get API key from environment
-    api_key = os.environ.get("MISTRAL_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": "Mistral API key not set"}),
+            "body": json.dumps({"error": "OpenRouter API key not set"}),
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*"
@@ -60,15 +60,17 @@ def handler(request):
         }
 
     try:
-        # Call Mistral API
+        # Call OpenRouter API
         response = requests.post(
-            "https://api.mistral.ai/v1/chat/completions",
+            "https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://braindump-six.vercel.app",  # Optional: your site URL
+                "X-Title": "Braindump Chat"  # Optional: your app name
             },
             json={
-                "model": "mistral-tiny",  # Free tier model
+                "model": "mistralai/mistral-7b-instruct:free",  # OpenRouter free Mistral model
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 150,
                 "temperature": 0.7
@@ -79,7 +81,7 @@ def handler(request):
         if response.status_code != 200:
             return {
                 "statusCode": response.status_code,
-                "body": json.dumps({"error": f"Mistral API error: {response.text}"}),
+                "body": json.dumps({"error": f"OpenRouter API error: {response.text}"}),
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*"
