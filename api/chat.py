@@ -70,7 +70,7 @@ def handler(request):
                 "X-Title": "Braindump Chat"  # Optional: your app name
             },
             json={
-                "model": "mistralai/mistral-7b-instruct:free",  # OpenRouter free Mistral model
+                "model": "mistralai/devstral-small:free",  # OpenRouter free Devstral model
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 150,
                 "temperature": 0.7
