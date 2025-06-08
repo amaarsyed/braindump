@@ -23,18 +23,15 @@ function ChatPage() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-
-    console.log("Sending API key:", process.env.REACT_APP_API_KEY);
     
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'api-key': process.env.REACT_APP_API_KEY
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          prompt: input.trim(),
         }),
       });
 
@@ -43,7 +40,7 @@ function ChatPage() {
       }
 
       const data = await response.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
@@ -99,7 +96,7 @@ function ChatPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900">
+      <form onSubmit={handleSubmit} className="p-2 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="flex gap-1.5">
           <input
             type="text"
