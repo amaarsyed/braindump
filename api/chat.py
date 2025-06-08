@@ -2,6 +2,10 @@ import os
 import requests
 import json
 from http.server import BaseHTTPRequestHandler
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -22,10 +26,10 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(400, "No prompt provided")
                 return
             
-            # Get API key from environment
+            # Get API key from environment (loaded from .env file)
             api_key = os.environ.get("OPENROUTER_API_KEY")
             if not api_key:
-                self.send_error_response(500, "API key not configured. Please set OPENROUTER_API_KEY in Vercel environment variables.")
+                self.send_error_response(500, "API key not configured. Please set OPENROUTER_API_KEY in .env file or environment variables.")
                 return
             
             # Call OpenRouter API with simpler free model
