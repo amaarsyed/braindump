@@ -21,3 +21,17 @@ Braindump is a modern, AI-powered creative canvas designed for brainstorming, no
 
 ---
 
+## Deployment
+
+1. Copy `.env.example` to `.env` and set your OpenRouter API key:
+
+   ```bash
+   cp .env.example .env
+   # edit .env and add your key
+   OPENROUTER_API_KEY=sk-...
+   ```
+
+2. When deploying to Vercel, add an `OPENROUTER_API_KEY` Environment Variable in
+   the Vercel dashboard so the backend can authenticate with OpenRouter.
+
+
