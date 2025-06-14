@@ -29,6 +29,7 @@ function ChatPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'api-key': process.env.REACT_APP_API_KEY,
         },
         body: JSON.stringify({
           prompt: input.trim(),
