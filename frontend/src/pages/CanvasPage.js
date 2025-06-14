@@ -976,11 +976,11 @@ export default function CanvasPage() {
         tempCtx.lineWidth = line.thickness || 2.5;
         tempCtx.beginPath();
         const smoothPoints = getCatmullRomSpline(line.points);
-        ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
+        tempCtx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
         for (let i = 1; i < smoothPoints.length; i++) {
-          ctx.lineTo(smoothPoints[i].x, smoothPoints[i].y);
+          tempCtx.lineTo(smoothPoints[i].x, smoothPoints[i].y);
         }
-        ctx.stroke();
+        tempCtx.stroke();
         tempCtx.restore();
       });
       // Draw sticky notes
