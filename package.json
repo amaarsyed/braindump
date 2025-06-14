@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "concurrently \"cd frontend && npm start\" \"cd backend && python main.py\"",
+    "start": "cd frontend && npm start",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && python simple_server.py",
     "install-all": "npm install && cd frontend && npm install --legacy-peer-deps && cd ../backend && pip install -r requirements.txt",
     "build": "cd frontend && npm run build"
   },

@@ -2,7 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LuSend, LuBrain } from 'react-icons/lu';
 
 function ChatPage() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: 'Hello! I\'m Boardly, your AI assistant for brainstorming and creative thinking. How can I help you with your ideas today?'
+    }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -20,28 +25,49 @@ function ChatPage() {
     if (!input.trim() || isLoading) return;
 
     const userMessage = { role: 'user', content: input.trim() };
+    const userInput = input.trim();
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': process.env.REACT_APP_API_KEY,
-        },
-        body: JSON.stringify({
-          prompt: input.trim(),
-        }),
-      });
+      // For local development, use a simple mock response
+      // In production (Vercel), this would call the actual API
+      if (process.env.NODE_ENV === 'development') {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Generate a mock response
+        const mockResponses = [
+          `That's interesting! You mentioned "${userInput}". I'm here to help with your brainstorming and creative process.`,
+          `Great point about "${userInput}"! What other ideas are you exploring on your canvas?`,
+          `I see you're thinking about "${userInput}". How does this connect to your other ideas?`,
+          `"${userInput}" - that's a fascinating concept! Would you like to explore this further?`,
+          `Thanks for sharing "${userInput}". I'm here to help you organize and expand your thoughts!`
+        ];
+        
+        const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+        setMessages(prev => [...prev, { role: 'assistant', content: randomResponse }]);
+      } else {
+        // Production API call
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': process.env.REACT_APP_API_KEY || 'default-key',
+          },
+          body: JSON.stringify({
+            prompt: userInput,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
       }
-
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
