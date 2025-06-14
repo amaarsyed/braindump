@@ -21,3 +21,7 @@ Braindump is a modern, AI-powered creative canvas designed for brainstorming, no
 
 ---
 
+## API Key Header
+
+The chat endpoint expects an `api-key` header. Store your key in an environment variable called `REACT_APP_API_KEY` and it will be sent automatically with requests from the React app.
+
