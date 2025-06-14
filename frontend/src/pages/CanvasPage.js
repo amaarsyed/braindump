@@ -316,7 +316,8 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
               max="20"
               value={penThickness}
               onChange={e => setPenThickness(Number(e.target.value))}
-              className="w-full"
+              className="w-full accent-blue-500"
+              aria-label="Pen thickness"
             />
           </div>
         </div>
@@ -329,7 +330,7 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
         </div>
         <div className="flex items-center gap-2">
           <LuGripHorizontal />
-          <input type="range" min="0.1" max="1" step="0.01" value={opacity} onChange={e => setOpacity(Number(e.target.value))} className="w-full" />
+          <input type="range" min="0.1" max="1" step="0.01" value={opacity} onChange={e => setOpacity(Number(e.target.value))} className="w-full accent-blue-500" aria-label="Pen opacity" />
         </div>
       </div>
       {/* Font dropdown for sticky notes */}
@@ -391,7 +392,8 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
               max="20"
               value={penThickness}
               onChange={e => setPenThickness(Number(e.target.value))}
-              className="w-full"
+              className="w-full accent-blue-500"
+              aria-label="Pen thickness"
             />
           </div>
         </div>
@@ -411,7 +413,8 @@ function RightToolbar({ tool, eraserSize, setEraserSize, color, setColor, opacit
               step="0.01"
               value={opacity}
               onChange={e => setOpacity(Number(e.target.value))}
-              className="w-full"
+              className="w-full accent-blue-500"
+              aria-label="Pen opacity"
             />
           </div>
         </div>
@@ -768,85 +771,50 @@ function getCatmullRomSpline(points, tension = 0.5, numOfSegments = 16) {
 }
 
 function PenMiniToolbar({ color, setColor, penThickness, setPenThickness, opacity, setOpacity, visible }) {
-  const [dragging, setDragging] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: 80 });
-  const toolbarRef = useRef(null);
   const COLORS = ["#000000", "#e03131", "#1971c2", "#fab005", "#40c057", "#ae3ec9", "#fd7e14", "#ffffff"];
-
-  useEffect(() => {
-    function handleMouseMove(e) {
-      if (!dragging) return;
-      setPosition((prev) => ({
-        x: e.clientX - 60,
-        y: e.clientY - 20,
-      }));
-    }
-    function handleMouseUp() {
-      setDragging(false);
-    }
-    if (dragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [dragging]);
 
   if (!visible) return null;
   return (
     <div
-      ref={toolbarRef}
-      className="z-50 flex flex-col items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-3 gap-3 select-none"
-      style={{
-        minWidth: 120,
-        position: "fixed",
-        left: position.x,
-        top: position.y,
-        transition: dragging ? 'none' : 'box-shadow 0.2s, left 0.3s cubic-bezier(.4,2,.6,1), top 0.3s cubic-bezier(.4,2,.6,1)',
-        cursor: dragging ? 'grabbing' : 'default',
-        userSelect: 'none',
-      }}
+      className="z-40 flex flex-col items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-3 gap-3 select-none min-w-[200px] fixed top-20 right-6"
       aria-label="Pen quick settings toolbar"
+      style={{ transition: 'box-shadow 0.2s, top 0.3s cubic-bezier(.4,2,.6,1)' }}
     >
-      <div
-        className="flex items-center justify-center w-full mb-1 cursor-grab"
-        style={{ height: 18 }}
-        onMouseDown={() => setDragging(true)}
-        aria-label="Drag pen toolbar"
-        tabIndex={0}
-      >
-        <LuGripHorizontal size={22} className="text-gray-400" />
-      </div>
-      <div className="flex gap-2 mb-1 items-center">
+      {/* Color row */}
+      <div className="flex gap-2 mb-1 items-center justify-center w-full">
         {COLORS.map((c, idx) => (
           <button
             key={c + idx}
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 ${color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'}`}
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-blue-400 ${color === c ? 'border-zinc-900 dark:border-white scale-110 shadow' : 'border-gray-300 dark:border-zinc-700'}`}
             style={{ background: c }}
             onClick={() => setColor(c)}
             aria-label={`Select pen color ${c}`}
+            tabIndex={0}
           >
             {color === c && <span className="w-2 h-2 rounded-full bg-white border border-zinc-900 dark:border-white" />}
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2 w-full">
-        <span className="text-xs text-gray-500 dark:text-gray-400">Thickness</span>
+      <div className="w-full h-px bg-gray-200 dark:bg-zinc-700 mb-1" />
+      {/* Thickness and Opacity sliders */}
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Thickness</span>
+          <span className="text-[12px] text-gray-500 dark:text-gray-400">{penThickness}px</span>
+        </div>
         <input
           type="range"
           min="1"
           max="20"
           value={penThickness}
           onChange={e => setPenThickness(Number(e.target.value))}
-          className="w-24"
+          className="w-full accent-blue-500"
           aria-label="Pen thickness"
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400">{penThickness}px</span>
-      </div>
-      <div className="flex items-center gap-2 w-full">
-        <span className="text-xs text-gray-500 dark:text-gray-400">Opacity</span>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Opacity</span>
+          <span className="text-[12px] text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+        </div>
         <input
           type="range"
           min="0.1"
@@ -854,10 +822,9 @@ function PenMiniToolbar({ color, setColor, penThickness, setPenThickness, opacit
           step="0.01"
           value={opacity}
           onChange={e => setOpacity(Number(e.target.value))}
-          className="w-24"
+          className="w-full accent-blue-500"
           aria-label="Pen opacity"
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
       </div>
     </div>
   );
